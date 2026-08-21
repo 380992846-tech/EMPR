@@ -1,0 +1,186 @@
+"""数据下载器。
+
+- SciBench     ：从 GitHub 直接拉官方 JSON（urllib，无额外依赖）。
+                  官方源 github.com/mandyyyyii/scibench 的 dataset/original/<subject>.json
+- OlympiadBench：从 HuggingFace 拉（需 datasets 包，已在 requirements）。
+                  含官方 final_answer + solution（解题步骤）。
+
+落地：data/scibench/*.jsonl、data/olympiadbench/*.jsonl，src/data.py 会自动扫描。
+
+用法：
+  python scripts/download_data.py --benchmark scibench          # 默认，物理 6 科 ~323 题
+  python scripts/download_data.py --benchmark scibench --all    # 全部科目
+  python scripts/download_data.py --benchmark olympiadbench     # 物理（英+中）
+  python scripts/download_data.py --benchmark all               # 两者都下
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+DATA = ROOT / "data"
+
+SCIBENCH_BRANCH = "main"
+SCIBENCH_RAW = f"https://raw.githubusercontent.com/mandyyyyii/scibench/{SCIBENCH_BRANCH}/dataset/original"
+
+# SciBench subject -> (显示名, 域)
+SCIBENCH_PHYSICS = {
+    "matter": "optics", "class": "mechanics", "fund": "general",
+    "diff": "general", "quan": "general", "thermo": "thermodynamics",
+}
+SCIBENCH_OTHER = {"atkins": "chemistry", "chemmc": "chemistry",
+                  "stat": "statistics", "calculus": "math"}
+
+# OlympiadBench 物理配置（HF: Hothan/OlympiadBench）
+OLYMPIAD_PHYSICS = {
+    "OE_TO_physics_en_COMP": "physics",     # 英语，开放作答，竞赛级
+    "OE_TO_physics_zh_CEE": "physics",      # 中文，高考级
+}
+
+
+# ---------------------------------------------------------------- 通用
+def _fetch(url: str) -> str:
+    req = urllib.request.Request(url, headers={"User-Agent": "dsh"})
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return resp.read().decode("utf-8")
+
+
+def _fetch_json(url: str):
+    return json.loads(_fetch(url))
+
+
+def _strip_tex(s: str) -> str:
+    return re.sub(r"\$|\\mathrm|\\text|{|}", "", s).strip()
+
+
+def _first(*vals):
+    for v in vals:
+        if v not in (None, "", [], [""]):
+            return v
+    return ""
+
+
+# ---------------------------------------------------------------- SciBench（GitHub）
+def download_scibench(out_dir: Path, subjects: dict):
+    out_dir.mkdir(parents=True, exist_ok=True)
+    total = 0
+    for subject, domain in subjects.items():
+        try:
+            probs = _fetch_json(f"{SCIBENCH_RAW}/{subject}.json")
+        except Exception as e:
+            print(f"  [skip] scibench/{subject}: {type(e).__name__}: {e}")
+            continue
+        sol_by_id = {}
+        try:
+            for s in _fetch_json(f"{SCIBENCH_RAW}/{subject}_sol.json"):
+                sid = _first(s.get("problemid"))
+                if sid and s.get("solution"):
+                    sol_by_id[str(sid).strip()] = s["solution"]
+        except Exception:
+            pass
+        n = 0
+        with open(out_dir / f"{subject}.jsonl", "w", encoding="utf-8") as f:
+            for p in probs:
+                q = _first(p.get("problem_text"))
+                if not q:
+                    continue
+                pid = str(_first(p.get("problemid"), "?")).strip()
+                rec = {
+                    "id": f"scibench-{subject}-{pid.replace(' ', '_')}",
+                    "question": str(q),
+                    "answer": _first(p.get("answer_number"), p.get("answer_latex")),
+                    "solution": sol_by_id.get(pid, ""),
+                    "domain": domain,
+                    "subset": subject,
+                }
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                n += 1
+        with_sol = sum(1 for p in probs if str(_first(p.get("problemid"))).strip() in sol_by_id)
+        print(f"  scibench/{subject:<7} {domain:<12} {n:>4} 题 (含解 {with_sol})")
+        total += n
+    return total
+
+
+# ---------------------------------------------------------------- OlympiadBench（HF）
+def download_olympiadbench(out_dir: Path, configs: dict):
+    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        from datasets import load_dataset
+    except Exception as e:
+        print(f"  [skip] OlympiadBench 需 datasets 包: {e}")
+        return 0
+    total = 0
+    for config, domain in configs.items():
+        try:
+            ds = load_dataset("Hothan/OlympiadBench", config, split="train")
+        except Exception as e:
+            print(f"  [skip] olympiadbench/{config}: {type(e).__name__}: {e}")
+            continue
+        n = 0
+        with open(out_dir / f"{config}.jsonl", "w", encoding="utf-8") as f:
+            for i, r in enumerate(ds):
+                q = r.get("question")
+                if not q:
+                    continue
+                ans = _first(r.get("final_answer"))
+                sol = _first(r.get("solution"))
+                rec = {
+                    "id": f"olympiadbench-{config}-{i}",
+                    "question": str(q),
+                    "answer": _strip_tex(str(ans)) if ans else "",
+                    "solution": _join_list(sol),
+                    "domain": r.get("subfield") or domain,
+                    "subset": config,
+                }
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                n += 1
+        print(f"  olympiadbench/{config:<24} {n:>4} 题 (含解 {n})")
+        total += n
+    return total
+
+
+def _join_list(x):
+    if isinstance(x, list):
+        return "\n".join(str(i) for i in x)
+    return str(x or "")
+
+
+# ---------------------------------------------------------------- main
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--benchmark", default="scibench",
+                   choices=["scibench", "olympiadbench", "all"])
+    p.add_argument("--scibench-subjects", default=None,
+                   help="逗号分隔的 SciBench 科目；默认物理 6 科；'all'=全部")
+    p.add_argument("--out-dir", default=None)
+    args = p.parse_args()
+
+    if args.out_dir:
+        out_root = Path(args.out_dir)
+    else:
+        out_root = DATA
+
+    total = 0
+    if args.benchmark in ("scibench", "all"):
+        if args.scibench_subjects == "all":
+            subs = {**SCIBENCH_PHYSICS, **SCIBENCH_OTHER}
+        elif args.scibench_subjects:
+            subs = {s.strip(): SCIBENCH_PHYSICS.get(s.strip(), "general")
+                    for s in args.scibench_subjects.split(",") if s.strip()}
+        else:
+            subs = dict(SCIBENCH_PHYSICS)
+        total += download_scibench(out_root / "scibench", subs)
+
+    if args.benchmark in ("olympiadbench", "all"):
+        total += download_olympiadbench(out_root / "olympiadbench", OLYMPIAD_PHYSICS)
+
+    print(f"\n完成：共 {total} 题")
+
+
+if __name__ == "__main__":
+    main()

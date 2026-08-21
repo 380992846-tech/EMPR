@@ -1,0 +1,18 @@
+# Core
+numpy>=1.24
+scipy>=1.10
+sympy>=1.11
+pyyaml>=6.0
+datasets>=2.14
+
+# Inference
+transformers>=4.40
+accelerate>=0.29
+# vllm 加速（云上强烈建议；装不上就退回 transformers）
+vllm>=0.4
+
+# Optional: 用 ollama 跑本地小模型（不强制）
+# ollama
+
+# Grading auxiliary
+# evaluate (LLM-judge 可选)
