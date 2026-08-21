@@ -76,11 +76,17 @@ def _save_labels(labels):
     LABELS_FILE.write_text(json.dumps(labels, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _label_key(model, pid):
+    """标签复合键：同一道题在不同模型下错误类型可能不同，必须按 (模型, 题id) 区分。"""
+    return f"{model}::{pid}"
+
+
 # ---------------------------------------------------------------- 手动标注
 def _manual_label(data, wrong):
     labels = _load_labels()
-    todo = [d for d in wrong if d["id"] not in labels]
-    print(f"共 {len(wrong)} 个错误样本，未标注 {len(todo)} 个（可 Ctrl-C 中断，进度会保存）")
+    model = data.get("model", "unknown")
+    todo = [d for d in wrong if _label_key(model, d["id"]) not in labels]
+    print(f"模型 {model}：共 {len(wrong)} 个错误样本，未标注 {len(todo)} 个（可 Ctrl-C 中断，进度会保存）")
     if not todo:
         print("已全部标注。")
         return labels
@@ -96,7 +102,7 @@ def _manual_label(data, wrong):
                 print("已保存，退出。")
                 return labels
             if ans in ("E1", "E2", "E3", "N", "S"):
-                labels[d["id"]] = ans
+                labels[_label_key(model, d["id"])] = ans
                 _save_labels(labels)
                 break
             print("  输入无效，请输入 E1/E2/E3/N/S")
@@ -106,7 +112,8 @@ def _manual_label(data, wrong):
 # ---------------------------------------------------------------- LLM 标注
 def _judge_label(data, wrong, judge_model, backend, cfg):
     labels = _load_labels()
-    todo = [d for d in wrong if d["id"] not in labels]
+    model = data.get("model", "unknown")
+    todo = [d for d in wrong if _label_key(model, d["id"]) not in labels]
     if not todo:
         return labels
     gen = llm_mod.make_generator(judge_model, backend=backend, seed=cfg["eval"]["seed"])
@@ -116,15 +123,15 @@ def _judge_label(data, wrong, judge_model, backend, cfg):
     for d, out in zip(todo, outs):
         tag = (out.strip() or "?")[:2].upper()
         if tag.startswith("E1"):
-            labels[d["id"]] = "E1"
+            labels[_label_key(model, d["id"])] = "E1"
         elif tag.startswith("E2"):
-            labels[d["id"]] = "E2"
+            labels[_label_key(model, d["id"])] = "E2"
         elif tag.startswith("E3"):
-            labels[d["id"]] = "E3"
+            labels[_label_key(model, d["id"])] = "E3"
         elif tag.startswith("N"):
-            labels[d["id"]] = "N"
+            labels[_label_key(model, d["id"])] = "N"
         else:
-            labels[d["id"]] = "?"
+            labels[_label_key(model, d["id"])] = "?"
     _save_labels(labels)
     return labels
 
@@ -132,7 +139,9 @@ def _judge_label(data, wrong, judge_model, backend, cfg):
 # ---------------------------------------------------------------- 报告
 def _report(data, compare=None, label_keys=("E1", "E2", "E3", "N")):
     labels = _load_labels()
-    count = {k: sum(1 for d in data["detail"] if labels.get(d["id"]) == k) for k in label_keys}
+    model = data.get("model", "unknown")
+    count = {k: sum(1 for d in data["detail"] if labels.get(_label_key(model, d["id"])) == k)
+             for k in label_keys}
     total_lab = sum(count.values())
     print(f"模型: {data.get('model')}  | 已标注错误样本: {total_lab}")
     print(f"{'类别':<6}{'数量':<6}{'占比':<8} 说明")
@@ -144,7 +153,7 @@ def _report(data, compare=None, label_keys=("E1", "E2", "E3", "N")):
     print("\n按 domain：")
     doms = {}
     for d in data["detail"]:
-        lbl = labels.get(d["id"])
+        lbl = labels.get(_label_key(model, d["id"]))
         if lbl in label_keys:
             doms.setdefault(d["domain"], {}).setdefault(lbl, 0)
             doms[d["domain"]][lbl] += 1
@@ -152,19 +161,15 @@ def _report(data, compare=None, label_keys=("E1", "E2", "E3", "N")):
         tot = sum(cc.values())
         print(f"  {dom:<14} " + "  ".join(f"{k}={cc.get(k,0)}" for k in label_keys) +
               f"  (n={tot})")
-    # 对比另一个分布（卡方）
+    # 对比另一个分布（卡方）——用各自模型的复合键，错误分布才能正确对比
     if compare is not None:
-        clabels = _load_labels_for(compare)
+        cmodel = compare.get("model", "unknown")
         a = [count[k] for k in label_keys]
-        b = [sum(1 for d in compare["detail"] if clabels.get(d["id"]) == k) for k in label_keys]
+        b = [sum(1 for d in compare["detail"] if labels.get(_label_key(cmodel, d["id"])) == k)
+             for k in label_keys]
         if sum(a) > 0 and sum(b) > 0:
             chi2, p, dof = chi2_contingency([a, b])
             print(f"\n两模型错误分布卡方: chi2={chi2:.2f}, df={dof}, p={p:.4f}")
-
-
-def _load_labels_for(data):
-    # 对比文件用同一 labels 文件（按 id 匹配）
-    return _load_labels()
 
 
 def main():
@@ -176,8 +181,13 @@ def main():
     p.add_argument("--compare-file", default=None, help="另一个 eval json，做错误分布卡方对比")
     args = p.parse_args()
 
+    # 从 config.yaml 读 seed，而非硬编码
+    import yaml
+    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    cfg.setdefault("eval", {})
+    cfg["eval"].setdefault("seed", 42)
+
     data, wrong = _load_eval(args.file)
-    cfg = {"eval": {"seed": 42}}
 
     if args.report:
         cmp = _load_eval(args.compare_file)[0] if args.compare_file else None

@@ -39,11 +39,11 @@ def load_config():
     return cfg
 
 
-def run_model(model_name, rows, cfg, backend, mode, max_new_tokens, batch_size):
+def run_model(model_name, rows, cfg, backend, mode, max_new_tokens, batch_size, gpus=1):
     """对一个模型跑完整评估，返回每行 (question, pred, ref, correct)。"""
     gen = llm_mod.make_generator(
         model_name, backend=backend, seed=cfg["eval"]["seed"],
-        max_new_tokens=max_new_tokens)
+        max_new_tokens=max_new_tokens, gpus=gpus)
     prompts = prompts_mod.build_prompts(rows, mode=mode)
     t0 = time.time()
     outputs = gen.gen_batch(prompts, batch_size=batch_size)
@@ -79,14 +79,18 @@ def report_table(detail, rows, cfg, model_name, benchmark, mode):
     if not overall:
         print("  (无样本)")
         return
-    acc, (lo, hi, _) = summarize_accuracy(overall, boot_iter, seed)
-    print(f"  OVERALL    {acc}")
+    # 先算并保存总体 acc，再进子域循环（子域循环会覆盖 acc，须先取走）
+    overall_acc, (lo, hi, _) = summarize_accuracy(overall, boot_iter, seed)
+    print(f"  OVERALL    {overall_acc}")
+    per_domain = {}
     for dom, dd in sorted(domains.items()):
         acc, _ = summarize_accuracy([d["correct"] for d in dd], boot_iter, seed)
+        per_domain[dom] = acc
         print(f"  {dom:<18} n={len(dd):<4} {acc}")
     return {
         "model": model_name, "benchmark": benchmark, "mode": mode,
-        "n": len(detail), "overall_acc": acc, "detail": detail,
+        "n": len(detail), "overall_acc": overall_acc,
+        "per_domain_acc": per_domain, "detail": detail,
     }
 
 
@@ -109,10 +113,13 @@ def main():
 
     cfg = load_config()
     defaults = cfg.get("defaults", {})
+    eval_cfg = cfg.get("eval", {})
     # 模式：显式 --mode 优先；否则 --cot 别名；否则 config defaults.mode
     mode = args.mode or ("cot" if args.cot else defaults.get("mode", "direct"))
     # 基准：--benchmark 优先；否则 defaults.benchmark
     benchmark = args.benchmark or defaults.get("benchmark", "scibench")
+    # max_new_tokens：CLI 默认值优先取 config eval.max_new_tokens
+    max_new_tokens = args.max_new_tokens or eval_cfg.get("max_new_tokens", 1024)
 
     # 模型列表（config.models 现为 {core:[...], large:[...]}）
     mdict = cfg.get("models", {})
@@ -138,7 +145,7 @@ def main():
             continue
         try:
             detail, dt = run_model(m, rows, cfg, args.backend, mode,
-                                   args.max_new_tokens, args.batch_size)
+                                   max_new_tokens, args.batch_size, args.gpus)
             rep = report_table(detail, rows, cfg, m, benchmark, mode)
             rep["wall_time_s"] = dt
             if args.save:

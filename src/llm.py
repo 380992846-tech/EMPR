@@ -12,8 +12,12 @@ def make_generator(model_name, backend="auto", gpus=1, seed=42, max_new_tokens=1
     if backend in ("auto", "vllm"):
         try:
             return _VLLMGenerator(model_name, gpus=gpus, seed=seed, max_tokens=max_new_tokens)
+        except ModuleNotFoundError:
+            print(f"[llm] vllm 未安装，退回 transformers")
+            if backend == "vllm":
+                raise
         except Exception as e:
-            print(f"[llm] vllm 不可用({e})，退回 transformers")
+            print(f"[llm] vllm 初始化失败({type(e).__name__}: {e})，退回 transformers")
             if backend == "vllm":
                 raise
     return _HFGenerator(model_name, seed=seed, max_new_tokens=max_new_tokens,
@@ -30,11 +34,15 @@ class _VLLMGenerator:
                                       seed=seed)
 
     def gen_batch(self, prompts, batch_size=128):
-        from vllm import SamplingParams
         out = []
         for i in range(0, len(prompts), batch_size):
             res = self._llm.generate(prompts[i:i + batch_size], self._params)
-            out.extend(r.outputs[0].text for r in res)
+            for r in res:
+                if not getattr(r, "outputs", None):
+                    # vllm 对请求级错误会返回空 outputs / error 对象，需兜底避免整批崩溃
+                    out.append("")
+                    continue
+                out.append(r.outputs[0].text)
         return out
 
 

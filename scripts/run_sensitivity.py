@@ -36,7 +36,9 @@ RESULTS = ROOT / "results"
 _QUANTITIES = ["mass", "kg", "m", "s", "N", "m/s", "m/s^2", "friction",
                "coefficient", "velocity", "force", "spring", "temperature", "charge"]
 
-_NUM_RE = re.compile(r"(\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)")
+# 只匹配"独立数值"：排除紧跟在 ^ 之后的数字（如 m/s^2 的指数 2），
+# 也排除在负数指数里的 -，避免把物理单位指数当数值扰动。
+_NUM_RE = re.compile(r"(?<![.\d\^])(\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)(?![eE]?\d)")
 
 
 def numeric_perturb(question: str, factor: float = 2.0, seed: int = 42, max_repl: int = 2):
@@ -132,8 +134,8 @@ def quantity_swap(question: str, seed: int = 42):
     return q
 
 
-def sensitivity_of_output(base_out, pert_out, base_ans, pert_ans):
-    """输出相对变化，带保护项防除零。返回 float。"""
+def sensitivity_of_output(base_ans, pert_ans):
+    """输出相对变化，带保护项防除零。返回 float 或 None（任一无法解析）。"""
     b, p = parse_number(base_ans), parse_number(pert_ans)
     eps = 1e-6
     if b is None or p is None:
@@ -168,6 +170,8 @@ def main():
     print(f"[data] {len(rows)} problems; generating base outputs...")
     base_prompts = prompts_mod.build_prompts(rows, mode=mode)
     base_out = gen.gen_batch(base_prompts)
+    # 按 base 题 id 建立"原始题 -> 输出"映射，供各变体按 id 对齐
+    base_by_id = {r["id"]: o for r, o in zip(rows, base_out)}
 
     import numpy as np
     summary = {"model": model, "variants": {}}
@@ -181,23 +185,36 @@ def main():
             print(f"[warn] 变体 {vname}: 没有生成任何改动（题面不适配），跳过")
             continue
         v_out = gen.gen_batch(prompts_mod.build_prompts(v_rows, mode=mode))
-        sens = []
-        for r, bo, po in zip(v_rows, base_out, v_out):
+
+        sens, n_unparsed = [], 0
+        for r, po in zip(v_rows, v_out):
+            # 关键修复：base 输出按原始 id 取，与变体题一一对应（不再 zip 错位）
+            base_id = r["id"].replace(f"-{vname}", "")
+            bo = base_by_id.get(base_id, "")
             bval, pval = extract_number(bo), extract_number(po)
-            s = sensitivity_of_output(bo, po,
-                                      str(bval) if bval else "",
-                                      str(pval) if pval else "")
-            sens.append(s if s is not None else 0.0)
+            if bval is None or pval is None:
+                # 解析失败：单独计数，绝不按 0 敏感（那会系统性偏向"记忆"结论）
+                n_unparsed += 1
+                continue
+            s = sensitivity_of_output(str(bval), str(pval))
+            if s is not None:
+                sens.append(s)
+        if not sens:
+            print(f"[warn] 变体 {vname}: 没有可解析的样本，跳过")
+            continue
         arr = np.array(sens)
         mean_sens = float(arr.mean())
         unchanged = float((arr < 1e-6).mean())
         print(f"\n===== {model} | {vname} variant =====")
         print(f"  n changed           : {len(v_rows)}")
+        print(f"  n parsed / n unparsed: {len(sens)} / {n_unparsed}")
         print(f"  mean sensitivity    : {mean_sens:.4f}")
         print(f"  median sensitivity  : {float(np.median(arr)):.4f}")
         print(f"  share of unchanged  : {unchanged:.3f}")
         summary["variants"][vname] = {
             "n_changed": len(v_rows),
+            "n_parsed": len(sens),
+            "n_unparsed": n_unparsed,
             "mean_sensitivity": mean_sens,
             "median_sensitivity": float(np.median(arr)),
             "unchanged_share": unchanged,
@@ -205,8 +222,10 @@ def main():
         if args.save:
             f = RESULTS / f"sensitivity_{vname}_{model.replace('/', '__')}.json"
             f.write_text(json.dumps({"model": model, "variant": vname,
-                                     "n": len(v_rows),
+                                     "n": len(v_rows), "n_parsed": len(sens),
+                                     "n_unparsed": n_unparsed,
                                      "mean_sensitivity": mean_sens,
+                                     "median_sensitivity": float(np.median(arr)),
                                      "unchanged_share": unchanged},
                                     ensure_ascii=False, indent=2), encoding="utf-8")
             print(f"[save] {f}")

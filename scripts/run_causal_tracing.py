@@ -37,8 +37,17 @@ _PLACEHOLDER = "zork blork"
 
 
 def corrupt_quantities(question: str):
-    """C2：把"数字 单位"替换为无语义占位符，保留句法结构。"""
-    pat = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?\s*[A-Za-z^]*(?:/[A-Za-z^]+)?")
+    """C2：把"数字 单位"替换为无语义占位符，保留句法结构。
+
+    匹配：数字(含科学计数) + 可选单位(字母串/单位组合) + 可选 ^指数(如 m/s^2 的 ^2)。
+    确保 `10^3`、`m/s^2` 这类带指数的写法被整体替换，不留残留数字。
+    """
+    pat = re.compile(
+        r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?"
+        r"\s*[A-Za-zμ°]*"
+        r"(?:/[A-Za-zμ°]+)?"
+        r"(?:\s*\^\s*[-+]?\d+)?"
+    )
     return pat.sub(_PLACEHOLDER, question)
 
 
@@ -81,8 +90,7 @@ def collect_clean_states(model, tok, prompt, device):
     handles = []
     def make_hook(idx):
         def hook(module, args, output):
-            h = output[0] if isinstance(output, (tuple, list)) else output
-            states[idx] = h.detach().cpu()
+            states[idx] = _unpack_hidden(output).detach().cpu()
         return hook
     for i in range(len(layers)):
         handles.append(layers[i].register_forward_hook(make_hook(i)))
@@ -94,6 +102,20 @@ def collect_clean_states(model, tok, prompt, device):
     return states
 
 
+def _unpack_hidden(output):
+    """从层输出中安全取出 residual hidden state。
+
+    兼容两种返回形态：
+      - tuple/list：``(hidden, ...)``；
+      - ``BaseModelOutputWithPast`` / dataclass：取 ``.last_hidden_state``。
+    """
+    if hasattr(output, "last_hidden_state"):
+        return output.last_hidden_state
+    if isinstance(output, (tuple, list)):
+        return output[0]
+    return output
+
+
 def run_restore(model, tok, prompt, restore_layer, clean_states, device, max_new=96):
     """corrupt 前向，但在第 restore_layer 层用 clean 状态覆盖。返回文本。"""
     import torch
@@ -103,13 +125,13 @@ def run_restore(model, tok, prompt, restore_layer, clean_states, device, max_new
     handles = []
     def make_hook(idx):
         def hook(module, args, output):
-            h = output[0] if isinstance(output, (tuple, list)) else output
-            if idx in clean_states:
+            h = _unpack_hidden(output)
+            # 只恢复目标层：其余层保持 corrupt（这是"逐层恢复"的核心语义）
+            if idx == restore_layer and idx in clean_states:
                 c = clean_states[idx].to(h.device)
                 # 位置对齐（截到当前 seq 长度）
                 h[:, : min(seq_len, c.shape[1])] = c[:, : min(seq_len, h.shape[1])]
-            out = (h,) if isinstance(output, (tuple, list)) else h
-            return out
+            return h
         return hook
     for i in range(len(layers)):
         handles.append(layers[i].register_forward_hook(make_hook(i)))

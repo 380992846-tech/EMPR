@@ -6,10 +6,16 @@ pyyaml>=6.0
 datasets>=2.14
 
 # Inference
-transformers>=4.40
+# torch 是 transformers/vllm 的底层依赖，必须显式安装；云上请按 CUDA 版本选择对应 wheel
+torch>=2.0
+transformers>=4.40,<4.46
 accelerate>=0.29
 # vllm 加速（云上强烈建议；装不上就退回 transformers）
+# 注意：vllm 对 torch/transformers 版本有强绑定，装不上/冲突时用 --backend transformers
 vllm>=0.4
+
+# Plotting (run_causal_tracing --plot / run_sensitivity 绘图)
+matplotlib>=3.7
 
 # Optional: 用 ollama 跑本地小模型（不强制）
 # ollama

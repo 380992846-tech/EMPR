@@ -66,6 +66,19 @@ def _first(*vals):
 
 
 # ---------------------------------------------------------------- SciBench（GitHub）
+def _norm_problem_id(raw) -> str:
+    """把 problemid 归一化为裸编号（用于匹配 _sol.json）。
+
+    problem 的 id 形如 ``"Problem 3.40"``，_sol.json 里形如 ``"3.40"``；
+    去掉 ``Problem`` 前缀、空白与其它非编号字符后对齐。
+    """
+    s = str(raw).strip()
+    if s.lower() in ("none", "null") or not s:
+        return ""
+    s = re.sub(r"(?i)problem\s*", "", s)   # 去 "Problem " 前缀
+    return s.strip()
+
+
 def download_scibench(out_dir: Path, subjects: dict):
     out_dir.mkdir(parents=True, exist_ok=True)
     total = 0
@@ -78,18 +91,18 @@ def download_scibench(out_dir: Path, subjects: dict):
         sol_by_id = {}
         try:
             for s in _fetch_json(f"{SCIBENCH_RAW}/{subject}_sol.json"):
-                sid = _first(s.get("problemid"))
+                sid = _norm_problem_id(s.get("problemid"))
                 if sid and s.get("solution"):
-                    sol_by_id[str(sid).strip()] = s["solution"]
-        except Exception:
-            pass
+                    sol_by_id[sid] = s["solution"]
+        except Exception as e:
+            print(f"  [warn] scibench/{subject} solution 抓取失败: {e}")
         n = 0
         with open(out_dir / f"{subject}.jsonl", "w", encoding="utf-8") as f:
             for p in probs:
                 q = _first(p.get("problem_text"))
                 if not q:
                     continue
-                pid = str(_first(p.get("problemid"), "?")).strip()
+                pid = _norm_problem_id(p.get("problemid"))
                 rec = {
                     "id": f"scibench-{subject}-{pid.replace(' ', '_')}",
                     "question": str(q),
@@ -100,7 +113,7 @@ def download_scibench(out_dir: Path, subjects: dict):
                 }
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 n += 1
-        with_sol = sum(1 for p in probs if str(_first(p.get("problemid"))).strip() in sol_by_id)
+        with_sol = sum(1 for p in probs if _norm_problem_id(p.get("problemid")) in sol_by_id)
         print(f"  scibench/{subject:<7} {domain:<12} {n:>4} 题 (含解 {with_sol})")
         total += n
     return total

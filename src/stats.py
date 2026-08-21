@@ -1,14 +1,15 @@
 """统计工具：bootstrap 95% CI、配对显著性。
 
 约定：所有正确率/性能指标都用 bootstrap CI，随机种子统一 42。
-numpy 可选：装了用 numpy（快）；没装用纯 Python（本机也能跑）。scipy 可选。
+**可复现性**：bootstrap 一律用纯 Python 的 ``random.Random`` + 顺序统计量，
+与机器是否装 numpy 无关——同一 seed 在任何环境得到完全相同的 CI。
+（此前 numpy 路径用 ``np.random.default_rng`` + 插值分位数，导致两种环境结果漂移。）
+scipy 可选：有则用精确卡方/正态分布，否则用数值近似。
 """
 from __future__ import annotations
 
-try:
-    import numpy as _np
-except Exception:  # pragma: no cover
-    _np = None
+import math
+import random as _random
 
 try:
     from scipy import stats as _sp
@@ -17,8 +18,6 @@ except Exception:  # pragma: no cover
 
 
 def _sample(arr, rng, n):
-    if _np is not None:
-        return arr[rng.integers(0, n, size=n)]
     return [arr[rng.randrange(n)] for _ in range(n)]
 
 
@@ -35,24 +34,22 @@ def _median(arr):
 
 
 def bootstrap_ci(scores, n_iter=10000, ci=0.95, seed=42, statistic="mean"):
-    """对一维样本计算 bootstrap 置信区间。返回 (lo, hi, mean)。"""
-    arr = list(scores) if _np is None else _np.asarray(scores, dtype=float)
+    """对一维样本计算 bootstrap 置信区间。返回 (lo, hi, mean)。
+
+    统一用纯 Python 实现（random.Random + 顺序统计量），确保不同机器结果一致。
+    """
+    arr = list(scores)
     n = len(arr)
     if n == 0:
         return float("nan"), float("nan"), float("nan")
-    if _np is not None:
-        rng = _np.random.default_rng(seed)
-        fn = _np.mean if statistic == "mean" else _np.median
-        boot = [fn(_sample(arr, rng, n)) for _ in range(n_iter)]
-        lo, hi = _np.percentile(boot, [(1 - ci) / 2 * 100, (1 + ci) / 2 * 100])
-        return float(lo), float(hi), float(fn(arr))
-    # 纯 Python 兜底
-    import random as _random
     rng = _random.Random(seed)
     fn = _mean if statistic == "mean" else _median
     boot = sorted(fn(_sample(arr, rng, n)) for _ in range(n_iter))
-    q = int((1 - ci) / 2 * n_iter), int((1 + ci) / 2 * n_iter) - 1
-    return float(boot[q[0]]), float(boot[q[1]]), float(fn(arr))
+    lo_idx = int((1 - ci) / 2 * n_iter)
+    hi_idx = int((1 + ci) / 2 * n_iter) - 1
+    lo_idx = max(0, min(lo_idx, n_iter - 1))
+    hi_idx = max(lo_idx, min(hi_idx, n_iter - 1))
+    return float(boot[lo_idx]), float(boot[hi_idx]), float(fn(arr))
 
 
 def summarize_accuracy(correct_flags, n_iter=10000, seed=42):
@@ -125,7 +122,56 @@ def chi2_contingency(matrix):
 
 
 def _chi2_sf(chi2, dof):
+    """卡方分布尾概率。scipy 优先；否则用不完全伽马函数的连分数近似（任意 dof）。"""
     if _sp is not None:
         return float(_sp.chi2.sf(chi2, dof))
-    # 1-dof 卡方 ~ 标准正态的平方：P = 2*(1-Phi(sqrt(chi2)))
-    return _normal_sf(chi2 ** 0.5) * 2
+    if dof <= 0 or chi2 < 0:
+        return 1.0
+    return float(_gammaincc(dof / 2.0, chi2 / 2.0))
+
+
+def _gammaincc(a, x):
+    """正则化上不完全伽马函数 Q(a,x)，连分数实现（数值稳定，任意 a,x>=0）。"""
+    if x <= 0 or a <= 0:
+        return 1.0
+    # Q(a,x) = 1 - P(a,x)；用连分数算 P(a,x)
+    return 1.0 - _gammainc_lentz(a, x)
+
+
+def _gammainc_lentz(a, x):
+    """下不完全伽马 P(a,x)，Lentz 连分数 + 幂级数，阈值切换。"""
+    # 公共系数：exp(-x) * x^a / Gamma(a)
+    g = math.exp(-x + a * math.log(x) - math.lgamma(a))
+    if x < a + 1:
+        # 幂级数（小 x 收敛快）
+        term = 1.0 / a
+        total = term
+        ap = a
+        for _ in range(200):
+            ap += 1
+            term *= x / ap
+            total += term
+            if term < 1e-15 * total:
+                break
+        return total * g
+    # 连分数：直接算 P(a,x) = 1 - exp(-x) x^a / Gamma(a) * D，其中 D 由连分数给出
+    b = x + 1 - a
+    c = 1e30
+    d = 1.0 / b if b != 0 else 1e-30
+    h = d
+    for i in range(1, 300):
+        an = -i * (i - a)
+        b += 2
+        d = an * d + b
+        if abs(d) < 1e-30:
+            d = 1e-30
+        c = b + an / c
+        if abs(c) < 1e-30:
+            c = 1e-30
+        d = 1.0 / d
+        delta = d * c
+        h *= delta
+        if abs(delta - 1) < 1e-12:
+            break
+    # Q(a,x) = g * h，故 P = 1 - Q
+    return 1.0 - g * h

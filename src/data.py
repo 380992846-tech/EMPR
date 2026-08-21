@@ -76,12 +76,13 @@ def _is_physics(r, keys=("subject", "subset", "domain", "field", "category")):
 
 # ---------------------------------------------------------------- SciBench
 def load_scibench(subsets=("phys",), max_n=None):
-    for ds_name in HF_CANDIDATES["scibench"]:
-        try:
-            ds = load_dataset(ds_name, split="test")
-            return _norm_scibench_hf(ds, subsets, max_n)
-        except Exception as e:
-            print(f"[data] HF '{ds_name}' 加载失败: {type(e).__name__}")
+    if _HAS_HF:
+        for ds_name in HF_CANDIDATES["scibench"]:
+            try:
+                ds = load_dataset(ds_name, split="test")
+                return _norm_scibench_hf(ds, subsets, max_n)
+            except Exception as e:
+                print(f"[data] HF '{ds_name}' 加载失败: {type(e).__name__}")
     # 本地目录回退：目录由 download_data.py 精挑（默认纯物理科目），不再做域关键词过滤
     return _load_local_dir("scibench", ("*",), max_n)
 
@@ -109,28 +110,29 @@ def load_olympiadbench(subsets=("physics",), max_n=None):
     except FileNotFoundError:
         pass
     # 否则尝试 HF（config 为 OE_TO_physics_en_COMP 等，见 download_data.py）
-    for ds_name in HF_CANDIDATES["olympiadbench"]:
-        try:
-            configs = ["OE_TO_physics_en_COMP", "OE_TO_physics_zh_CEE"]
-            rows = []
-            for cfg in configs:
-                ds = load_dataset(ds_name, cfg, split="train")
-                for i, r in enumerate(ds):
-                    q = r.get("question")
-                    if not q:
-                        continue
-                    rows.append({
-                        "id": f"olympiadbench-{cfg}-{i}",
-                        "question": str(q),
-                        "answer": str((r.get("final_answer") or [""])[0]),
-                        "solution": _join_solution(r.get("solution")),
-                        "domain": r.get("subfield") or "physics",
-                        "subset": cfg,
-                    })
-            if rows:
-                return rows[:max_n] if max_n else rows
-        except Exception as e:
-            print(f"[data] HF '{ds_name}' 加载失败: {type(e).__name__}")
+    if _HAS_HF:
+        for ds_name in HF_CANDIDATES["olympiadbench"]:
+            try:
+                configs = ["OE_TO_physics_en_COMP", "OE_TO_physics_zh_CEE"]
+                rows = []
+                for cfg in configs:
+                    ds = load_dataset(ds_name, cfg, split="train")
+                    for i, r in enumerate(ds):
+                        q = r.get("question")
+                        if not q:
+                            continue
+                        rows.append({
+                            "id": f"olympiadbench-{cfg}-{i}",
+                            "question": str(q),
+                            "answer": str((r.get("final_answer") or [""])[0]),
+                            "solution": _join_solution(r.get("solution")),
+                            "domain": r.get("subfield") or "physics",
+                            "subset": cfg,
+                        })
+                if rows:
+                    return rows[:max_n] if max_n else rows
+            except Exception as e:
+                print(f"[data] HF '{ds_name}' 加载失败: {type(e).__name__}")
     return _load_local_dir("olympiadbench", subsets, max_n)
 
 
@@ -142,6 +144,8 @@ def _join_solution(x):
 
 # ---------------------------------------------------------------- MMLU
 def load_mmlu_physics(max_n=None):
+    if not _HAS_HF:
+        return _load_local_dir("mmlu_physics", ("*",), max_n)
     try:
         ds = load_dataset("cais/mmlu", "physics", split="test")
         rows = list(ds)
@@ -149,10 +153,13 @@ def load_mmlu_physics(max_n=None):
         for i, r in enumerate(rows):
             letters = ["A", "B", "C", "D", "E"][: len(r["choices"])]
             opts = "".join(f"\n{letters[j]}. {r['choices'][j]}" for j in range(len(r["choices"])))
+            # MMLU 的 answer 是选项下标(0-4)，转成字母以便与 MCQ 判定/模型输出对齐
+            ans_idx = int(r["answer"]) if str(r["answer"]).isdigit() else -1
+            ans = letters[ans_idx] if 0 <= ans_idx < len(letters) else str(r["answer"])
             out.append({
                 "id": f"mmlu-physics-{i}",
                 "question": f"{r['question']}{opts}",
-                "answer": str(r["answer"]),
+                "answer": ans,
                 "solution": "",
                 "domain": "mcq",
                 "subset": "mmlu_physics",
@@ -234,14 +241,18 @@ def _flatten_json(data):
 
 def _domain_of(s):
     s = str(s).lower()
-    # SciBench 科目名
+    # SciBench 科目名（显式优先，避免量子/数学被混入 "general"）
     if s in ("class", "classical") or "mech" in s:
         return "mechanics"
     if s in ("thermo",) or "therm" in s:
         return "thermodynamics"
     if s in ("matter",) or "wave" in s or "optic" in s:
         return "optics"
-    if s in ("quan", "fund", "diff", "calculus", "stat", "atkins", "chemmc"):
+    if s in ("quan", "quantum") or "quant" in s:
+        return "quantum"
+    if s in ("calculus", "diff") or "calculus" in s or "diff" in s:
+        return "math"
+    if s in ("fund", "stat", "atkins", "chemmc", "general"):
         return "general"
     # 通用关键词
     if any(k in s for k in ("mech", "dynam", "kinemat", "force")):
@@ -252,6 +263,8 @@ def _domain_of(s):
         return "electromagnetism"
     if any(k in s for k in ("optic", "light", "wave")):
         return "optics"
+    if any(k in s for k in ("quant", "quantum")):
+        return "quantum"
     return s or "unknown"
 
 

@@ -70,14 +70,18 @@ def extract_number(text: str):
     for line in text.splitlines():
         line = line.strip()
         if line.upper().startswith("ANSWER:"):
-            return parse_number(line[len("ANSWER:"):])
-    # 2) "answer is X" / "result = X"
+            return _parse_number_with_sci(line[len("ANSWER:"):])
+    # 2) 科学计数法 "a × 10^b"（在 answer/result 之前，避免被普通解析截断成 mantissa）
+    sci = _sci_notation(text)
+    if sci is not None:
+        return sci
+    # 3) "answer is X" / "result = X"
     m = re.search(r"(?:answer|result)\s*(?:is|:|=)\s*(.+)", text, re.I)
     if m:
-        v = parse_number(m.group(1))
+        v = _parse_number_with_sci(m.group(1))
         if v is not None:
             return v
-    # 3) 末尾最后一个数（启发式）。跳过 "^" 后的指数（如 m/s^2 的 2）。
+    # 4) 末尾最后一个数（启发式）。跳过 "^" 后的指数（如 m/s^2 的 2）。
     _plain = re.compile(r"(?<!\^)-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")
     candidates = []
     for g in _plain.findall(text):
@@ -87,13 +91,39 @@ def extract_number(text: str):
     return candidates[-1] if candidates else None
 
 
+def _sci_notation(text: str):
+    """解析 "mantissa 10^exp" 或 "mantissa x 10^exp"；失败返回 None。"""
+    m = re.search(
+        r"(-?\d+(?:\.\d+)?)\s*(?:[xX×*]\s*)?10\s*\^\s*([-+]?\d+)", text,
+    )
+    if not m:
+        return None
+    mantissa = float(m.group(1)) if m.group(1) else 1.0
+    return mantissa * (10 ** int(m.group(2)))
+
+
+def _parse_number_with_sci(s: str):
+    """parse_number，但先尝试科学计数。"""
+    sci = _sci_notation(s)
+    if sci is not None:
+        return sci
+    return parse_number(s)
+
+
 # ---------------------------------------------------------------- judging
 def judge(pred_text: str, reference: str, tol: float = 0.05, abs_tol: float = 0.01):
     """返回 (bool correct, float pred_value or None)。
 
-    reference 支持纯数值字符串或带单位的（会先 parse_number）。
+    reference 支持纯数值字符串、带单位（会先 parse_number），
+    或 MCQ 的单个字母（A-E，此时做字母比对）。
     """
-    ref = parse_number(reference)
+    ref_str = str(reference).strip()
+    # MCQ 字母答案：reference 是单个字母时精确比对（忽略大小写）
+    if re.fullmatch(r"[A-Ea-e]", ref_str):
+        m = re.search(r"\b([A-Ea-e])\b", pred_text or "")
+        return (m is not None and m.group(1).upper() == ref_str.upper()), None
+
+    ref = parse_number(ref_str)
     if ref is None:
         return False, None
     pred = extract_number(pred_text)

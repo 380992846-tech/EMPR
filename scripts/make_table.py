@@ -49,17 +49,23 @@ def _load_files(directory, benchmark=None, mode=None):
     return out
 
 
-def _acc_matrix(data_list, group_key, ci=0.95, seed=42):
+def _acc_matrix(data_list, group_key, ci=0.95, seed=42, n_iter=10000):
     """返回 (models_sorted, groups_sorted, matrix, meta)。
-    matrix[(model, group)] = (acc, lo, hi, n)。meta[(model,group)]=(benchmark, mode)。"""
+    matrix[(model, group)] = (acc, lo, hi, n)。meta[(model,group)]=(benchmark, mode)。
+
+    组名加 benchmark 前缀，避免多基准在 results/ 混放时同名 domain（如 mechanics）
+    被错误合并进同一列。
+    """
     rows = {}
     meta = {}
     for d in data_list:
         m = d["model"]
+        bm = d.get("benchmark", "?")
         for r in d["detail"]:
             g = r.get(group_key) or "unknown"
-            rows.setdefault(m, {}).setdefault(g, []).append(1.0 if r["correct"] else 0.0)
-            meta[(m, g)] = (d.get("benchmark"), d.get("mode"))
+            key = f"{bm}/{g}"  # 带基准前缀，避免跨基准混表
+            rows.setdefault(m, {}).setdefault(key, []).append(1.0 if r["correct"] else 0.0)
+            meta[(m, key)] = (bm, d.get("mode"))
     models = sorted(rows.keys())
     groups = sorted({g for mm in rows.values() for g in mm})
     matrix = {}
@@ -67,7 +73,7 @@ def _acc_matrix(data_list, group_key, ci=0.95, seed=42):
         for g in groups:
             vals = rows.get(m, {}).get(g, [])
             if vals:
-                lo, hi, mean = bootstrap_ci(vals, ci=ci, seed=seed)
+                lo, hi, mean = bootstrap_ci(vals, n_iter=n_iter, ci=ci, seed=seed)
                 matrix[(m, g)] = (mean, lo, hi, len(vals))
             else:
                 matrix[(m, g)] = None
@@ -129,10 +135,18 @@ def main():
         print(f"没找到 results/eval_*.json（在 {args.dir}）。先跑 run_eval.py --save 生成。")
         return
 
+    # 从 config.yaml 读 bootstrap 迭代数与 seed，避免与 run_eval 的 CI 不一致
+    import yaml
+    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    eval_cfg = cfg.get("eval", {})
+    n_iter = eval_cfg.get("bootstrap_iterations", 10000)
+    seed = eval_cfg.get("seed", 42)
+
     print(f"加载 {len(data_list)} 个评估结果:",
           ", ".join(f"{d['model'].split('/')[-1]}({d.get('mode')})" for d in data_list))
 
-    models, groups, matrix, meta = _acc_matrix(data_list, args.group)
+    # 用与 run_eval 一致的 n_iter 重算 CI（跨 benchmark 分列后 group 已有前缀）
+    models, groups, matrix, meta = _acc_matrix(data_list, args.group, ci=0.95, seed=seed, n_iter=n_iter)
 
     if args.format == "csv":
         import csv
