@@ -1,7 +1,5 @@
 # EMPR — Emergent Physical Reasoning in Open LLMs
 
-从零复现 + 改造论文的实验代码库（单兵 + 云算力版本）。
-
 **目标**：用真实实验支撑一篇机制分析论文——开放 LLM 在多步物理推理上的
 (1) 性能规律、(2) 数值敏感性（区分记忆 vs 计算）、(3) 因果追踪（计算定位到哪几层）。
 最终诚实框定为"sophisticated pattern matching，不是真物理理解"。
@@ -10,7 +8,7 @@
 
 ---
 
-## 📚 文档导航（先看这里）
+##  文档导航
 
 | 文档 | 在哪 | 用来看什么 |
 |---|---|---|
@@ -20,8 +18,6 @@
 | **本代码库** | `README.md`（本文件） | 代码骨架、命令、目录结构 |
 | **云上部署 + 首跑** | `DEPLOY_CHECKLIST.md` | 上云第一天怎么跑通 |
 | **提交 Git 前检查** | `GIT_COMMIT_CHECKLIST.md` | 提交前逐条自查，保证可复现 |
-
-> 建议路线：`论文评估报告.md`（为什么做这篇）→ `EMPR复现计划.md`（怎么做）→ `EMPR改造清单.md`（现状到可投）→ 本 README（跑代码）→ `DEPLOY_CHECKLIST.md`（上云）→ `GIT_COMMIT_CHECKLIST.md`（收尾）。
 
 ---
 
