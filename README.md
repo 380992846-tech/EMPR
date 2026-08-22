@@ -2,19 +2,19 @@
 
 **目标**：用真实实验支撑开放 LLM 在多步物理推理上的
 (1) 性能规律、(2) 数值敏感性（区分记忆 vs 计算）、(3) 因果追踪（计算定位到哪几层）。
-sophisticated pattern matching，
+最终诚实框定为 "sophisticated pattern matching，不是真物理理解"。
 
 **现状**：本仓库已包含 Week 1（评估管道）+ Week 2（敏感性，三种变体）+ Week 3（因果追踪，逐层恢复率曲线）+ Week 4（错误分类）的可运行骨架。
 
 ---
 
-##  文档导航
+## 文档导航
 
 | 文档 | 在哪 | 用来看什么 |
 |---|---|---|
-| **项目总览 / 策略** | `_assess\EMPR计划.md` | 整篇怎么做、基准/模型选型、5 周排期、资源预算 |
-| **稿件改造清单** | `_assess\EMPR改造清单.md` | 从 AI 稿现状到可投的逐项修改、目标会议、工作量 |
-| **全量稿件评估** | `_assess\论文评估报告.md` | 整个论文目录里每篇稿件的分级判断 |
+| **项目总览 / 策略** | `_assess/EMPR复现计划.md` | 整篇怎么做、基准/模型选型、5 周排期、资源预算 |
+| **稿件改造清单** | `_assess/EMPR改造清单.md` | 从 AI 稿现状到可投的逐项修改、目标会议、工作量 |
+| **全量稿件评估** | `_assess/论文评估报告.md` | 整个论文目录里每篇稿件的分级判断 |
 | **本代码库** | `README.md`（本文件） | 代码骨架、命令、目录结构 |
 | **云上部署 + 首跑** | `DEPLOY_CHECKLIST.md` | 上云第一天怎么跑通 |
 | **提交 Git 前检查** | `GIT_COMMIT_CHECKLIST.md` | 提交前逐条自查，保证可复现 |
@@ -26,6 +26,8 @@ sophisticated pattern matching，
 - 模型池分 **core（默认，4090 友好）** 和 **large（可选，需 A100）** 两组。
 - 默认基准/模式/模型在 `config.yaml → defaults`；提示词模板在 `src/prompts.py`（**不在 config.yaml**）。
 - 改模型/超参优先改 `config.yaml`，命令行 `--flag` 可覆盖。
+
+---
 
 ## 快速开始
 
@@ -55,7 +57,7 @@ python scripts/run_sensitivity.py --model Qwen/Qwen2.5-7B-Instruct \
 python scripts/run_causal_tracing.py --model Qwen/Qwen2.5-7B-Instruct \
     --benchmark scibench --max-problems 8 --save --plot
 
-# 7. 自动生成主表（模型 × 子域 × 正确率+CI）
+# 7. 自动生成论文主表（模型 × 子域 × 正确率+CI）
 python scripts/make_table.py --dir results --benchmark scibench --mode cot --format md
 python scripts/make_table.py --dir results --format md --out results/table.md
 
@@ -67,10 +69,12 @@ python scripts/classify_errors.py --file A.json --report --compare-file B.json  
 # 输出结果表（含 bootstrap 95% CI）到 results/
 ```
 
-> 部署+首跑步骤见 [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md)。
-```
+> 部署 + 首跑步骤见 [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md)。
+
+---
 
 ## 目录结构
+
 ```
 EMPR/
   config.yaml              # 默认模型/基准/超参
@@ -93,7 +97,10 @@ EMPR/
   results/                 # 输出（json + 表格 + png）
 ```
 
+---
+
 ## 设计约定
+
 - **确定性**：greedy（temperature=0）保证可复现；随机种子统一 42。
 - **对错判定**：默认用符号/数值比对（sympy，相对误差 ≤5%，近零用绝对差）；LLM-judge 仅做辅助。
 - **可复现**：所有结果带 bootstrap 95% CI（10,000 次）。
