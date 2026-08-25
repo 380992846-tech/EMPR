@@ -4,6 +4,7 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+.ipynb_checkpoints/
 
 # 数据/模型产物（可能很大）
 # data 整个目录不进库（可由 download_data.py 重新生成）
@@ -12,6 +13,16 @@ data/
 results/*.json
 !results/.gitkeep
 models/
+
+# 模型权重/检查点（避免误提交大文件）
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.ckpt
+
+# 日志
+*.log
 
 # 系统
 .DS_Store

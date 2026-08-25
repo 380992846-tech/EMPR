@@ -1,0 +1,27 @@
+% ==========================================================================
+% EMPR 主结果表骨架（模型 × 子域 正确率 + bootstrap 95% CI）
+% 运行 scripts/make_table.py --dir results --benchmark scibench --format tex
+% 后，把输出贴进这里，或用下面的列结构手工填。数字务必来自 results/*.json，
+% 不要引用任何 AI 稿里的旧数字。
+% ==========================================================================
+\begin{table}[t]
+  \centering
+  \caption{Accuracy (\%) on SciBench physics, by model and sub-domain, with
+           bootstrap 95\% confidence intervals (10{,}000 resamples, seed=42).
+           $n$ is the number of problems in each sub-domain.}
+  \label{tab:main}
+  \small
+  \begin{tabular}{@{}l r | c c c c c@{}}
+    \toprule
+    \multirow{2}{*}{\textbf{Model}} & \multirow{2}{*}{$n$} & \multicolumn{5}{c}{\textbf{Sub-domain accuracy (\% [95\% CI])}} \\
+    \cmidrule(lr){3-7}
+    & & Overall & Mechanics & Thermodynamics & Optics & General \\
+    \midrule
+    % -- 用 make_table.py 的输出替换下面各行；没跑的就删掉（别留空的占位行假装跑过）--
+    Qwen2.5-7B-Instruct     & \_\_ & \_\_   & \_\_   & \_\_   & \_\_   & \_\_ \\
+    Qwen2.5-14B-Instruct    & \_\_ & \_\_   & \_\_   & \_\_   & \_\_   & \_\_ \\
+    Mistral-7B-Instruct-v0.3& \_\_ & \_\_   & \_\_   & \_\_   & \_\_   & \_\_ \\
+    Llama-3.1-8B-Instruct   & \_\_ & \_\_   & \_\_   & \_\_   & \_\_   & \_\_ \\
+    \bottomrule
+  \end{tabular}
+\end{table}

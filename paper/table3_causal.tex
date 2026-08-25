@@ -1,0 +1,30 @@
+% ==========================================================================
+% EMPR 因果追踪表骨架（逐层恢复率，核心机制定位）
+% 数字来自 scripts/run_causal_tracing.py --save --plot 的 results/ json。
+% ⚠ 只用开放权重模型（8B/14B，70B 可选），不要做闭源 API 的隐藏态干预。
+% 也可折成"层区间 × 物理子域"角度，看是否验证"热力学偏后、光学偏前"。
+% ==========================================================================
+\begin{table}[t]
+  \centering
+  \caption{Causal tracing recovery rate by layer (open-weight model, e.g.\
+           Qwen2.5-14B-Instruct). Higher recovery at layer $i$ means the
+           computation for the physical answer is localized around that layer.}
+  \label{tab:causal}
+  \small
+  \begin{tabular}{@{}l l c@{}}
+    \toprule
+    \textbf{Model} & \textbf{Method} & \textbf{Critical layer range (recovery $\uparrow$)} \\
+    \midrule
+    \_\_\_\_\_\_\_\_ & corrupt-numeric$\rightarrow$restore & layers \_\_--\_\_ (peak recovered) \\
+    \_\_\_\_\_\_\_\_ & corrupt-numeric$\rightarrow$restore & layers \_\_--\_\_ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% 图：恢复率-层曲线 / 热力图（run_causal_tracing.py --plot 生成）
+% \begin{figure}[t]
+%   \centering
+%   \includegraphics[width=.8\linewidth]{figures/causal_recovery.png}
+%   \caption{Recovery rate as a function of restored layer, per sub-domain.}
+%   \label{fig:causal}
+% \end{figure}

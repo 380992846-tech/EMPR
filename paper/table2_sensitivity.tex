@@ -1,0 +1,28 @@
+% ==========================================================================
+% EMPR 敏感性表骨架（记忆 vs 计算）
+% 数字来自 scripts/run_sensitivity.py --save 的 results/sensitivity_summary_*.json。
+% 覆盖率 = n_changed / total_questions。
+% ⚠ 如实填：swap 覆盖率偏低(~11%)是数据集固有，在正文 Limitations 写清。
+% ==========================================================================
+\begin{table}[t]
+  \centering
+  \caption{Sensitivity of model outputs to hard vs. surface perturbations on
+           SciBench physics. Num.\ changes physical values (structure intact);
+           Word.\ only rewrites surface phrasing (physics \& data identical);
+           Swap exchanges two distinct physical quantities (creating a
+           physically inconsistent problem). Higher mean sensitivity to
+           \texttt{numeric} and \texttt{swap} relative to \texttt{wording}
+           indicates genuine computation rather than retrieval.}
+  \label{tab:sensitivity}
+  \small
+  \begin{tabular}{@{}l c c c c c@{}}
+    \toprule
+    \textbf{Variant} & \textbf{Coverage} & \textbf{$n$ parsed}
+      & \textbf{Mean sens.} & \textbf{Median} & \textbf{Unchanged share} \\
+    \midrule
+    numeric (value change)          & \_\_\% & \_\_ & \_\_\_ & \_\_\_ & \_\_\_ \\
+    wording (surface paraphrase)    & \_\_\% & \_\_ & \_\_\_ & \_\_\_ & \_\_\_ \\
+    swap   (physical inconsistency) & \_\_\% & \_\_ & \_\_\_ & \_\_\_ & \_\_\_ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
