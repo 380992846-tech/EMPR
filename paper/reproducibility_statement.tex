@@ -1,0 +1,100 @@
+% ==========================================================================
+% EMPR 论文 · 可复现性声明 + 算力/硬件披露
+% 英文，可直接粘进论文（放在正文后、Acknowledgments 前）。
+% 凡是 \_\_ 占位处，跑完实验后用真实值替换（不要留空）。
+% 与 paper/TABLES.md 配套：数字一律来自 results/。
+% ==========================================================================
+\section{Reproducibility}
+\label{sec:reproducibility}
+
+\paragraph{Code and version.}
+All code, evaluation scripts, and analysis utilities are released in the
+accompanying repository (\url{https://github.com/380992846-tech/EMPR}) at the
+exact commit used for this paper (\texttt{\_\_COMMIT\_\_}). The full pipeline
+runs from a single configuration file (\texttt{config.yaml}) and a single
+entry point per analysis stage; no manual steps are required to go from the
+raw datasets to every table and figure in this paper.
+
+\paragraph{Datasets.}
+We evaluate on \textbf{SciBench} (\url{https://github.com/mandyyyyii/scibench}),
+physics subsets (matter, class, fund, diff, quan, thermo), with \_\_$N_{sci}$\_\_
+problems after loading, and on \textbf{OlympiadBench} physics
+(\url{https://huggingface.co/datasets/Hothan/OlympiadBench},\;
+configs \texttt{OE\_TO\_physics\_en\_COMP} and
+\texttt{OE\_TO\_physics\_zh\_CEE}). Both are public; they are downloaded
+automatically by \texttt{scripts/download\_data.py} and cached under
+\texttt{data/}. Dataset versions and download dates are recorded in
+\texttt{data/README.md} (\_\_link/\_\_\_date\_\_).
+
+\paragraph{Models.}
+All models are open-weight, taken from Hugging Face Hub at their published
+checkpoints: Qwen2.5-7B/14B-Instruct, Llama-3.1-8B/70B-Instruct,
+Mistral-7B-Instruct-v0.3, DeepSeek-R1-Distill-Qwen-14B, and
+Qwen2.5-72B-Instruct (models marked ``gated'' are loaded under a HF Hub
+token; see \texttt{config.yaml} for the full list and access note). No
+closed-weight or API-only model is used for any result; in particular,
+causal tracing is performed exclusively on open-weight models whose residual
+stream is accessible.
+
+\paragraph{Inference settings.}
+Decoding is \textbf{greedy} (temperature $=0$) with a fixed seed (42), and
+\texttt{max\_new\_tokens}=1024, throughout, so all outputs are deterministic.
+Inference uses vLLM (with a transformers fallback, \texttt{--backend
+transformers}) on a single GPU; the tensor-parallel setting and batch size are
+reported in \texttt{config.yaml}.
+
+\paragraph{Answer extraction and grading.}
+Correctness is judged by exact symbolic/numeric comparison. The model's final
+answer is extracted (\texttt{extract\_number}), parsed, and compared to the
+reference under a relative tolerance of 5\% (absolute tolerance 0.01 for
+near-zero targets) using the Python/SymPy evaluator. The grading function is
+unit-tested (\texttt{src/grading.py}, 7/7 self-test cases pass) and is used as
+the sole correctness signal; no LLM judge is used for the primary results to
+avoid circularity.
+
+\paragraph{Statistical protocol.}
+All reported accuracy and sensitivity numbers are accompanied by bootstrap
+95\% confidence intervals from 10{,}000 resamples with seed
+$=$\,42. The bootstrap is implemented in pure Python using
+\texttt{random.Random} and order statistics, so the confidence intervals are
+reproduced \emph{identically} across machines, independent of the NumPy
+version. Pairwise model comparisons use a McNemar test; error-distribution
+comparisons use a chi-square test.
+
+\paragraph{Causal tracing.}
+We follow the corrupt-and-restore protocol on open-weight models: the numeric
+quantities of a question are replaced with a placeholder (C2 corruption), the
+model is run, and the clean hidden state is restored at exactly one layer at a
+time. Only the targeted layer is restored (the rest remain corrupted), which
+isolates the contribution of each layer and yields the layer-wise recovery
+curves in Fig.~\ref{fig:causal}. We report the critical layer ranges for each
+model and, where relevant, per sub-domain.
+
+\paragraph{Hardware and compute.}
+All inference, sensitivity, and causal-tracing runs were executed on a single
+NVIDIA A100-80G GPU (fallback: RTX 4090-24G for models $\le$14B; 70B/72B
+models require A100-80G or 2$\times$ tensor parallel). The model checkpoints
+require $\ge$100\,GB of disk. Total compute for the reported runs is
+\_\_\_$\times$A100\_\_\_hours (\_\_\_ wall-clock); per-stage breakdown is in
+\texttt{config.yaml} and \texttt{DEPLOY\_CHECKLIST.md}.
+
+\paragraph{Reproducibility checklist.}
+\begin{itemize}
+  \item Deterministic decoding (temperature 0, seed 42): \checkmark
+  \item Public datasets + auto-download script: \checkmark
+  \item Open-weight models, public checkpoints: \checkmark
+  \item Symbolic/numeric grading with self-test: \checkmark
+  \item Bootstrap 95\% CI, machine-independent: \checkmark
+  \item Causal tracing on open-weight models only: \checkmark
+  \item Code and config at a pinned commit: \checkmark
+\end{itemize}
+
+\paragraph{Limitations affecting reproducibility.}
+The \texttt{swap} perturbation (physically-inconsistent questions) has a
+coverage of \_\_\%~(\_\_/ $\_\_$ of the physics problems relevant to the
+analysis) because many problems contain quantities of a single type or no
+units; this is reported as a limitation rather than artificially inflated.
+Unparsed model outputs are counted and reported (\texttt{n\_unparsed}), never
+imputed. Heuristics used by the surface-perturbation generator
+(\texttt{wording}) are deterministic and listed in the code, so the
+perturbations themselves are reproducible.
