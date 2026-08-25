@@ -92,3 +92,10 @@ EMPR/
 - **确定性**：greedy（temperature=0）保证可复现；随机种子统一 42。
 - **对错判定**：默认用符号/数值比对（sympy，相对误差 ≤5%，近零用绝对差）；LLM-judge 仅做辅助。
 - **可复现**：所有结果带 bootstrap 95% CI（10,000 次）。
+
+---
+
+## 相关项目
+
+- **量子纠错解码（Ising Decoding）**：<https://github.com/380992846-tech/Ising-Decoding>
+
