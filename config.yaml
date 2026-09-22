@@ -22,15 +22,18 @@ eval:
 
 benchmarks:
   # SciBench 主基准。官方源 github.com/mandyyyyii/scibench。
-  # 加载顺序：HF 候选 -> 本地 data/scibench/（download_data.py 生成，推荐）
+  # 加载顺序：**本地 data/scibench/ 优先**（download_data.py 生成，可复现）；
+  #          本地不存在才试 HF 候选，可用 EMPR_PREFER_HF=1 强制走 HF。
   scibench:
     subsets: ["phys"]
   # 竞赛物理（HF，含官方 final_answer + solution）
   olympiadbench:
     subsets: ["physics"]
-  # 可选 sanity check（MCQ）
+  # 可选 sanity check（MCQ）。cais/mmlu **没有** "physics" 这个 config，
+  # 实际加载这三个（共 488 题）：high_school_physics 151 / college_physics 102 /
+  # conceptual_physics 235。判定走选项字母比对。
   mmlu_physics:
-    subsets: ["physics"]
+    subsets: ["high_school_physics", "college_physics", "conceptual_physics"]
 
 models:
   # 本地 CPU 冒烟池：**不是论文模型**，只用来确认"提示词→生成→判定→表格"链路是通的。

@@ -18,8 +18,10 @@
   ⚠ 早期版本把 `quan`/`diff` 都落成 `general`，154/323 题挤进一个桶——若你看到 `general` 约 154，说明用的是旧数据/旧代码。
 - **⚠ 分母口径（必须写进论文）**：正确率**只统计 scorable 样本**——参考答案无法解析的题（`unscorable_ref`）
   被剔除，不算模型错。每张表都要报 `n_scorable` 与 `n_unscored`；另外报 `n_unparsed_pred`
-  （模型没给出可解析答案，计为错）以暴露提示词/判分问题。SciBench 物理上 `n_unscored = 0`，
-  OlympiadBench 上会不少。
+  （模型没给出可解析答案，计为错）以暴露提示词/判分问题。
+  **SciBench 物理 323 题全部可判分（n_unscored = 0）**；
+  **OlympiadBench 351 题里只有 152 题（43.3%）可数值判分**，用那个基准出表必须写明覆盖率
+  （其余是符号/多变量解，`results/preflight_olympiadbench.json` 有记录）。
 - **⚠ 抽样口径**：`--max-problems N` 默认**按科目轮转抽样**（不是取前 N 题），否则会拿到清一色单科目。
 - **填空清单**：
   - [ ] 覆盖模型池 core + large（跑了几只填几只，别装全部跑过）。

@@ -90,20 +90,25 @@ def _check_grading():
 def _check_judge_self_consistency(rows, benchmark):
     print("[4/5] 判分自洽（参考答案当预测）...")
     from src.grading import judge_ex
-    bad = []
+    bad, n_scorable = [], 0
     for r in rows:
         res = judge_ex(f"ANSWER: {r['answer']}", r["answer"])
         if res["status"] == "unscorable_ref":
             continue
+        n_scorable += 1
         if not res["correct"]:
             bad.append({"id": r["id"], "ref": r["answer"], "pred_val": res["pred"]})
-    ratio = (len(rows) - len(bad)) / max(len(rows), 1)
-    print(f"      {'[FAIL]' if bad else '[OK]'} 自洽 {len(rows) - len(bad)}/{len(rows)} "
-          f"({ratio:.4f})")
+    ratio = (n_scorable - len(bad)) / max(n_scorable, 1)
+    n_unscorable = len(rows) - n_scorable
+    print(f"      {'[FAIL]' if bad else '[OK]'} 可判分 {n_scorable}/{len(rows)} 题，"
+          f"其中自洽 {n_scorable - len(bad)}/{n_scorable} ({ratio:.4f})")
+    if n_unscorable:
+        print(f"      另有 {n_unscorable} 条参考答案不可判分（符号/多变量），"
+              f"已剔除出分母——论文里必须报这个覆盖率")
     for b in bad[:5]:
         print(f"        - {b['id']}: ref={b['ref']!r} -> {b['pred_val']!r}")
-    return {"n": len(rows), "n_inconsistent": len(bad),
-            "judge_self_consistency": round(ratio, 4)}, bool(bad)
+    return {"n": len(rows), "n_scorable": n_scorable, "n_unscorable": n_unscorable,
+            "n_inconsistent": len(bad), "judge_self_consistency": round(ratio, 4)}, bool(bad)
 
 
 def _check_coverage(rows, seed):

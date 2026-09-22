@@ -34,6 +34,8 @@
   },
   "judge_self_consistency": {
     "n": 323,
+    "n_scorable": 323,
+    "n_unscorable": 0,
     "n_inconsistent": 0,
     "judge_self_consistency": 1.0
   },
@@ -51,12 +53,12 @@
       "coverage": 0.7430340557275542
     }
   },
-  "elapsed_s": 47.3,
+  "elapsed_s": 23.4,
   "passed": true,
   "meta": {
     "script": "preflight.py",
-    "created_utc": "2026-09-22T05:10:58Z",
-    "git_commit": "37265c0+dirty",
+    "created_utc": "2026-09-22T05:42:11Z",
+    "git_commit": "57ab88d+dirty",
     "env": {
       "python": "3.14.4",
       "platform": "Windows-11-10.0.26200-SP0",

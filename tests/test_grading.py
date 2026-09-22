@@ -68,7 +68,7 @@ def test_unscorable_reference_is_flagged_not_counted_wrong():
 
 
 def test_reference_parser_is_strict_but_not_brittle():
-    """参考答案必须严进：宽松的 parse_number 会把 x^2+2x 读成 1，污染分母。"""
+    """参考答案必须严进：宽松的 parse_number 会把 x^2+2x 读成 2，污染分母。"""
     # 可解析（真数值）
     for s, want in [("19.8", 19.8), ("-0.16", -0.16), ("7.25%", 7.25), ("1/2", 0.5),
                     ("2.5e3", 2500.0), ("2.5 x 10^3", 2500.0), ("1.0 J", 1.0),
@@ -83,6 +83,35 @@ def test_reference_parser_is_strict_but_not_brittle():
     # parse_number 依然宽松（用于模型输出），两者分工明确：
     # 对符号表达式它会"抠出第一个数字"，正是这种宽松让参考答案必须走严格解析
     assert parse_number("x^2 + 2x") == 2.0
+
+
+def test_latex_math_answers_are_parsed():
+    """OlympiadBench 的参考答案是 LaTeX。早期下载器把答案落成列表串（"['9.26']"）
+    又无脑删掉花括号（\\frac{1}{2} -> \\frac12），351 条全部不可判分。
+    这里钉住：LaTeX 数值答案要能解析，真符号答案不许被硬当成数字。"""
+    numeric = {
+        r"\frac{\sqrt{2}}{2}": 0.7071067811865476,
+        r"\frac{2\sqrt{5}}{3}": 1.4907119849998598,
+        r"\cot \frac{\pi}{8}": 2.414213562373095,
+        r"\sqrt{3}": 1.7320508075688772,
+        r"1 \times 10^{14}": 1e14,
+        r"1.0 \times 10^{-3}": 0.001,
+        r"\dfrac{3}{4}": 0.75,
+    }
+    for s, want in numeric.items():
+        got = parse_reference(s)
+        assert got is not None, s
+        assert got == pytest.approx(want, rel=1e-9), s
+    for s in [r"\lambda=i \Omega", r"x(t)=A \cos (\Omega t+\phi)",
+              r"\frac{1}{2}mv^2", r"2 \pi \sqrt{\frac{10 \ln (2)}{3 \pi}}"]:
+        assert parse_reference(s) is None, s
+
+
+def test_normalize_keeps_structure():
+    """花括号不能被无脑删掉：\\frac{1}{2} 必须保留分数结构。"""
+    assert normalize_text(r"\frac{1}{2}") == "((1)/(2))"
+    assert normalize_text(r"\frac{\sqrt{2}}{2}") == "((sqrt(2))/(2))"
+    assert "((1)/(2))" in normalize_text(r"\frac{1}{2}mv^2")
 
 
 def test_model_failure_to_answer_is_scored_wrong_but_flagged():

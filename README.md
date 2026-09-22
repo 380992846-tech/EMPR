@@ -21,9 +21,10 @@
 |---|---|---|
 | 判分有效性（参考答案自判） | ✅ 已跑 | `results/selfcheck_scibench.json`：**323/323 = 1.0000**，0 条参考答案不可解析 |
 | 判分回归用例 | ✅ 已跑 | `python -m src.grading` → 23/23 |
-| 一键体检 | ✅ 已跑 | `results/preflight_scibench.json`：PASS（依赖/数据/判分/覆盖率四项全过） |
-| 单元 + 集成测试 | ✅ 已跑 | `pytest tests -q` → **79 passed**（含微型模型上的因果追踪集成测试） |
-| 变体覆盖率（Week 2 前置） | ✅ 已跑 | `results/sensitivity_coverage_scibench.json`：numeric 94.4%、wording 74.3%、swap 11.1% |
+| 一键体检 | ✅ 已跑 | `results/preflight_scibench.json`、`preflight_olympiadbench.json`：均 PASS |
+| 单元 + 集成测试 | ✅ 已跑 | `pytest tests -q` → **83 passed**（含微型模型上的因果追踪集成测试） |
+| 变体覆盖率（Week 2 前置） | ✅ 已跑 | SciBench：numeric 94.4%、wording 74.3%、swap 11.1%；OlympiadBench：57.8% / 51.3% / 2.8% |
+| 第二基准可判分率 | ✅ 已跑 | `results/preflight_olympiadbench.json`：OlympiadBench 152/351 = **43.3%** 参考答案可数值判分 |
 | 链路端到端（0.5B · CPU） | ✅ 已跑 | `results/eval_scibench_{direct,cot}_Qwen__Qwen2.5-0.5B-Instruct.json` 等，见下方「冒烟」 |
 | Week 1 主表（真模型） | ⏳ 待云 GPU | 本机无 CUDA（torch 2.11+cpu）；冒烟只证明链路可跑通 |
 | Week 2 敏感性（真模型） | ⏳ 待云 GPU | 探针与审计口径已就绪并已在 0.5B 上跑通 |
@@ -70,13 +71,24 @@
 早期版本两处各写一套，把 quan/diff 落成 `general`，导致 154/323 题挤进同一个桶、子域主表失真——
 现在 `tests/test_data_prompts.py` 里有测试钉住这一点。
 
+**可选 sanity check（MMLU 物理 MCQ）**：`--benchmark mmlu_physics`，加载 `cais/mmlu` 的
+`high_school_physics` 151 + `college_physics` 102 + `conceptual_physics` 235 题，判定走选项字母比对。
+（`cais/mmlu` 里**没有** `physics` 这个 config——早期代码写的就是它，于是这条 sanity check 一直是死的。）
+
+**第二基准（OlympiadBench，竞赛物理）**：`--benchmark olympiadbench`，351 题（英 236 / 中 115），带官方解题步骤。
+⚠ **只有 43.3%（152/351）的参考答案可以数值判分**：其余是符号/多变量解（如 `\lambda=i\Omega`、
+`x(t)=A\cos(\Omega t+\phi)`），只能做符号等价判定——现在这类题标记 `unscorable_ref` 并剔除出分母。
+早期下载器把 `final_answer` 列表直接 `str()` 落成 `"['9.26']"` 并删掉 LaTeX 花括号，
+**351 条全部不可判分**；现在下载器取标量、保留数学结构，判分侧也补了 LaTeX 解析
+（`\frac{\sqrt{2}}{2}` → 0.7071、`\cot\frac{\pi}{8}` → 2.4142）。
+
 ---
 
 ## 快速开始
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests -q                      # 79 项，几秒钟
+python -m pytest tests -q                      # 83 项，几秒钟
 python scripts/download_data.py                # SciBench 物理 6 科 → data/scibench/*.jsonl
 ```
 
@@ -231,8 +243,10 @@ EMPR/
 4. 因果追踪**只对开放权重模型**做隐藏态干预；闭源 API 不可复现。
    且只有"clean 答对且 corrupt 确实掉分"的题才计入恢复率（脚本会报跳过数量）。
 5. 本机无 CUDA：真模型数字必须来自云 GPU；README 里的 CPU 冒烟只证明链路能跑通。
-6. 判定基于数值比对，**符号型参考答案**（OlympiadBench 常见）会被剔除出分母，
-   那些基准上的正确率是在"可判分子集"上算的，覆盖率必须一并报告。
+6. 判定基于数值比对。**OlympiadBench 上只有 43.3%（152/351）的参考答案可数值判分**，
+   其余是符号/多变量解。那些基准上的正确率是在"可判分子集"上算的，**覆盖率必须一并报告**；
+   SciBench 物理 323 题全部可判分（0 剔除），所以主表不受影响。
+   MMLU 物理（488 题）是选择题，判定走选项字母，不存在该问题。
 
 ---
 

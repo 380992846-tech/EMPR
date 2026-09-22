@@ -59,7 +59,31 @@ def _fetch_json(url: str):
 
 
 def _strip_tex(s: str) -> str:
-    return re.sub(r"\$|\\mathrm|\\text|{|}", "", s).strip()
+    """轻量清洗答案：只去掉 $ 与 \\mathrm{}/\\text{} 外壳，**保留数学结构**。
+
+    早期实现是 `re.sub(r"\\$|\\\\mathrm|\\\\text|{|}", "", s)` —— 它把花括号一起删掉，
+    于是 ``\\frac{\\sqrt{2}}{2}`` 变成 ``\\frac\\sqrt22``（不可解析的噪声）。
+    LaTeX 转换交给 src/grading.py 的 normalize_text 统一处理，这里不要抢着破坏结构。
+    """
+    s = str(s or "").strip()
+    s = s.replace("$", "")
+    s = re.sub(r"\\(?:mathrm|text|operatorname)\s*\{([^{}]*)\}", r"\1", s)
+    return s.strip()
+
+
+def _first_scalar(x):
+    """HF 字段常是单元素列表（如 final_answer=['2022.2']），取出标量。
+
+    早期直接把列表 str() 进答案字段，落盘成 "['2022.2']" —— 351 条 OlympiadBench
+    参考答案全军覆没（100% 不可判分），而且宽松解析器还会"碰巧"从里面抠出 2022.2，
+    把 bug 藏起来。
+    """
+    if isinstance(x, (list, tuple)):
+        for v in x:
+            if v not in (None, ""):
+                return v
+        return ""
+    return x
 
 
 def _first(*vals):
@@ -144,12 +168,12 @@ def download_olympiadbench(out_dir: Path, configs: dict):
                 q = r.get("question")
                 if not q:
                     continue
-                ans = _first(r.get("final_answer"))
+                ans = _first_scalar(_first(r.get("final_answer")))
                 sol = _first(r.get("solution"))
                 rec = {
                     "id": f"olympiadbench-{config}-{i}",
                     "question": str(q),
-                    "answer": _strip_tex(str(ans)) if ans else "",
+                    "answer": _strip_tex(ans) if ans else "",
                     "solution": _join_list(sol),
                     "domain": r.get("subfield") or domain,
                     "subset": config,

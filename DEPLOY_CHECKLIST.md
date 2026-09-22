@@ -15,13 +15,15 @@
 
 ```bash
 python -m pip install -r requirements.txt      # 或只用最小依赖：pyyaml sympy numpy scipy pytest
-python -m pytest tests -q                       # 74 项：判分/统计/变体/数据/提示词
+python -m pytest tests -q                       # 83 项：判分/统计/变体/数据/提示词
 python -m src.grading                           # 判分回归用例（应 23/23 通过）
 python scripts/download_data.py                 # 拉 SciBench 物理 6 科（~323 题）
 python scripts/run_eval.py --self-check --benchmark scibench --save
         # 用参考答案当预测跑判分：必须 323/323 一致，否则先修 src/grading.py
 python scripts/run_sensitivity.py --coverage --benchmark scibench --max-problems 323 --save
         # 变体覆盖率：numeric 94.4% / wording 74.3% / swap 11.1%（swap 低是数据固有，如实写）
+python scripts/preflight.py --benchmark olympiadbench
+        # 若要用第二基准：确认参考答案可判分率（当前 152/351 = 43.3%）与变体覆盖率
 ```
 
 没 GPU 也想验证"模型→判定→表格"整条链路（可选，结果不可当论文数字）：
@@ -51,6 +53,10 @@ python scripts/make_table.py --dir results
 ## 3. 数据
 - [ ] `python scripts/download_data.py`（默认物理 6 科 → `data/scibench/*.jsonl`）
 - [ ] （可选）`python scripts/download_data.py --benchmark olympiadbench`
+      - ⚠ 竞赛物理的参考答案大量是符号解：**只有 43.3%（152/351）可数值判分**，
+        其余会被标记 `unscorable_ref` 并剔除出分母。报了正确率就必须同时报覆盖率。
+      - 早期下载器会把 `final_answer` 列表落成 `"['9.26']"` 且删掉 LaTeX 花括号，**351 条全废**；
+        若你用的是旧 `data/olympiadbench/`，删掉重跑下载器。
 - [ ] 校验：`python -c "from src.data import load_benchmark, format_composition as f; d=load_benchmark('scibench'); print(len(d)); print(f(d))"`
       - 期望：323 题；`general=71 | thermodynamics=66 | mechanics=56 | math=50 | optics=47 | quantum=33`
       - 子域映射的唯一真源是 `src/data.py: SCIBENCH_SUBJECT_DOMAIN`（不要另写一套）

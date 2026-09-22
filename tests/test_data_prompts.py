@@ -73,6 +73,30 @@ def test_naive_slice_would_be_biased():
     assert len({r["subset"] for r in naive}) == 1
 
 
+# ---------------------------------------------------------------- MMLU（MCQ 分支）
+def test_mmlu_physics_configs_exist_in_cais_mmlu():
+    """回归：cais/mmlu 里没有 "physics" 这个 config，写错会让整条 MCQ sanity check 静默失效。
+
+    这里不联网，只钉住"用的是真实存在的 config 名"这一事实（名字拼错就等于功能死掉）。
+    """
+    assert "physics" not in data_mod.MMLU_PHYSICS_CONFIGS
+    assert set(data_mod.MMLU_PHYSICS_CONFIGS) == {
+        "high_school_physics", "college_physics", "conceptual_physics"}
+
+
+def test_mmlu_row_normalization():
+    """把 HF 的 answer 下标转成字母，并在题干里拼出 A./B./C./D. 选项。"""
+    fake = [
+        {"question": "Q1?", "choices": ["one", "two", "three", "four"], "answer": 2},
+        {"question": "Q2?", "choices": ["only"], "answer": 9},          # 越界 -> 保留原值
+    ]
+    rows = data_mod._norm_mmlu(fake, "conceptual_physics")
+    assert rows[0]["answer"] == "C"
+    assert "B. two" in rows[0]["question"] and rows[0]["domain"] == "mcq"
+    assert rows[0]["id"] == "mmlu-conceptual_physics-0"
+    assert rows[1]["answer"] == "9"
+
+
 # ---------------------------------------------------------------- 本地数据
 @pytest.mark.skipif(not DATA_OK, reason="需要 data/scibench/*.jsonl（先跑 download_data.py）")
 def test_load_scibench_local():

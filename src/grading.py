@@ -60,7 +60,24 @@ _LATEX_FIXES = (
     (re.compile(r"\\left|\\right|\\,|\\;|\\!|\\ "), " "),
     (re.compile(r"\\mathrm\s*\{([^{}]*)\}"), r"\1"),
     (re.compile(r"\\text\s*\{([^{}]*)\}"), r"\1"),
+    (re.compile(r"\\%"), "%"),
+    # \frac{a}{b} -> ((a)/(b))：**必须保留括号**，否则 "\frac{1}{2}mv^2" 这类
+    # 符号表达式会被降级成一串裸数字（"12mv^2"），参考答案就判错了。
+    (re.compile(r"\\dfrac|\\tfrac"), r"\\frac"),
 )
+_FRAC_LOOP = (re.compile(r"\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}"), r"((\1)/(\2))")
+_SQRT_LOOP = (re.compile(r"\\sqrt\s*\{([^{}]*)\}"), r"sqrt(\1)")
+# LaTeX 数学函数 -> sympy 函数名。很多"看起来是符号答案"其实有唯一数值
+# （\cos^{10}(\frac{\pi}{10})、\cot\frac{\pi}{8}），映射后就能判分。
+_MATH_FUNCS = {
+    "pi": "pi", "sin": "sin", "cos": "cos", "tan": "tan", "cot": "cot",
+    "sec": "sec", "csc": "csc", "ln": "log", "log": "log", "exp": "exp",
+    "arcsin": "asin", "arccos": "acos", "arctan": "atan",
+    "sinh": "sinh", "cosh": "cosh", "tanh": "tanh",
+}
+# 隐式乘法："2sqrt(5)" / "2 pi" -> "2*sqrt(5)" / "2*pi"
+_IMPLICIT_MUL = re.compile(
+    r"(?<=[\d)])\s*(?=(?:sqrt|pi|sin|cos|tan|cot|sec|csc|log|exp|asin|acos|atan)\b)")
 
 ANSWER_LABEL = re.compile(r"^\s*(?:\*\*)?\s*(?:final\s+)?(?:ANSWER|答案)\s*(?:\*\*)?\s*[:：]", re.I)
 BOXED = re.compile(r"\\(?:boxed|fbox)\s*\{([^{}]*)\}")
@@ -77,6 +94,17 @@ def normalize_text(text: str) -> str:
         out = out.replace(k, v)
     for pat, repl in _LATEX_FIXES:
         out = pat.sub(repl, out)
+    # LaTeX 数学函数（\pi、\cos …）先变成可求值形式
+    for name, fn in _MATH_FUNCS.items():
+        out = re.sub(r"\\" + name + r"\b", fn, out)
+    # \frac/\sqrt 可能嵌套（\frac{\sqrt{2}}{2}），多跑几轮直到稳定
+    for _ in range(5):
+        new = _FRAC_LOOP[0].sub(_FRAC_LOOP[1], out)
+        new = _SQRT_LOOP[0].sub(_SQRT_LOOP[1], new)
+        if new == out:
+            break
+        out = new
+    out = _IMPLICIT_MUL.sub("*", out)
     # "10,000" -> "10000"（但保留 "a, b" 这种普通逗号）
     out = _COMMA_IN_NUMBER.sub("", out)
     return out
