@@ -32,7 +32,7 @@ DATA = ROOT / "data"
 SCIBENCH_BRANCH = "main"
 SCIBENCH_RAW = f"https://raw.githubusercontent.com/mandyyyyii/scibench/{SCIBENCH_BRANCH}/dataset/original"
 
-# SciBench 科目 -> 显示域。**不要在这里另写一套映射**：早期版本把 quan/diff 都写成
+# SciBench 科目 -> 显示域。**不要在这里另写一套映射**：若把 quan/diff 都写成
 # "general"，落盘后再加载时子域字段就固定成 general，154/323 题挤进同一个桶，
 # 于是"模型 × 子域"主表直接失真。现在统一从 src.data 取。
 SCIBENCH_PHYSICS = {s: _domain_of(s) for s in
@@ -61,9 +61,8 @@ def _fetch_json(url: str):
 def _strip_tex(s: str) -> str:
     """轻量清洗答案：只去掉 $ 与 \\mathrm{}/\\text{} 外壳，**保留数学结构**。
 
-    早期实现是 `re.sub(r"\\$|\\\\mathrm|\\\\text|{|}", "", s)` —— 它把花括号一起删掉，
-    于是 ``\\frac{\\sqrt{2}}{2}`` 变成 ``\\frac\\sqrt22``（不可解析的噪声）。
-    LaTeX 转换交给 src/grading.py 的 normalize_text 统一处理，这里不要抢着破坏结构。
+    只去掉 $ 与 \\mathrm{}/\\text{} 外壳，花括号与数学结构必须保留；
+    LaTeX 到可求值形式的转换统一由 src/grading.py 的 normalize_text 负责。
     """
     s = str(s or "").strip()
     s = s.replace("$", "")
@@ -74,9 +73,8 @@ def _strip_tex(s: str) -> str:
 def _first_scalar(x):
     """HF 字段常是单元素列表（如 final_answer=['2022.2']），取出标量。
 
-    早期直接把列表 str() 进答案字段，落盘成 "['2022.2']" —— 351 条 OlympiadBench
-    参考答案全军覆没（100% 不可判分），而且宽松解析器还会"碰巧"从里面抠出 2022.2，
-    把 bug 藏起来。
+    该字段是列表时必须取标量；若直接 str() 落盘，会得到 "['2022.2']" 这类字符串，
+    参考答案将无法被严格解析。
     """
     if isinstance(x, (list, tuple)):
         for v in x:

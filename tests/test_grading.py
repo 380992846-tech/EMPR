@@ -1,7 +1,7 @@
 """判分（src/grading.py）回归测试。
 
 判分是整个项目的有效性底座：一个"答对却判错"的系统性偏差，会直接把论文主结论
-写成反的。这里把每个真实踩过的坑都钉成用例。
+写成反的。这里把每个已验证的关键行为都固定为回归用例。
 """
 from __future__ import annotations
 
@@ -24,13 +24,13 @@ def test_self_check_cases(text, ref, want):
 
 
 def test_thousands_separator_not_split():
-    # 早期 bug：NUM_RE 把 "10,000" 切成 10 和 000，取到 0 -> 答对被判错
+    # 回归点：千分位逗号必须先规范化，否则 "10,000" 会被切成 10 与 000
     assert extract_number("The mass is $10,000 \\mathrm{kg}$.") == 10000.0
     assert judge("ANSWER: 10000", "10,000")[0]
 
 
 def test_scientific_notation_whole_value():
-    # 早期 bug：只取到尾数 2.5
+    # 回归点：科学计数法整体解析，不能只取尾数
     assert extract_number("ANSWER: $2.5 \\times 10^{3}$") == 2500.0
     assert extract_number("ANSWER: 2.5e3") == 2500.0
     assert extract_number("ANSWER: 2.5 x 10^3") == 2500.0
@@ -54,7 +54,7 @@ def test_boxed_and_inline_forms():
 
 
 def test_mcq_letter_not_confused_with_prose():
-    # 早期 bug：\b[A-E]\b 全文搜索，"A car..." 的 A 被当成选项
+    # 回归点：选项字母只在 ANSWER: 行或 "answer is X" 附近识别，不对全文做 \b[A-E]\b 搜索
     assert extract_choice("A car starts from rest and accelerates.") is None
     assert extract_choice("ANSWER: B") == "B"
     assert judge("A car accelerates, so ANSWER: C", "C")[0]
@@ -86,9 +86,11 @@ def test_reference_parser_is_strict_but_not_brittle():
 
 
 def test_latex_math_answers_are_parsed():
-    """OlympiadBench 的参考答案是 LaTeX。早期下载器把答案落成列表串（"['9.26']"）
-    又无脑删掉花括号（\\frac{1}{2} -> \\frac12），351 条全部不可判分。
-    这里钉住：LaTeX 数值答案要能解析，真符号答案不许被硬当成数字。"""
+    """OlympiadBench 的参考答案是 LaTeX，且答案字段为列表（形如 ['9.26']）。
+
+    解析必须满足两点：LaTeX 数值形式（\\frac、\\sqrt、\\cot 等）可求值；
+    真正的符号解不得被当成数字。这两点共同决定了该基准的可判分覆盖率。
+    """
     numeric = {
         r"\frac{\sqrt{2}}{2}": 0.7071067811865476,
         r"\frac{2\sqrt{5}}{3}": 1.4907119849998598,

@@ -5,12 +5,12 @@
     gen = make_generator(model_name, backend="auto", ...)
     outs = gen.gen_batch(prompts)      # list[str] -> list[str]，顺序与长度严格一致
 
-三条容易静默出错的约定（都踩过）：
+三条必须成立的约定（否则会静默出错）：
   1. **顺序与长度严格一致**：任何一条失败也要占位（返回 ``""``），否则
      ``zip(rows, outputs)`` 会整体错位，把 A 题的输出判到 B 题的答案上。
      （现在 gen_batch 之后还会校验长度，不一致直接抛错。）
   2. **批量生成必须左填充**：decoder-only 模型右填充时会在 pad 之后续写，
-     transformers 只打一行 warning 不报错，批量结果直接是垃圾。
+     transformers 仅给出一行 warning 而不报错，批量结果会整体失真。
   3. **instruct 模型要走 chat template**：直接把裸 prompt 喂给 instruct 模型，
      它会去"续写指令"而不是"回答问题"（实测 0.5B 会回 ``ANSWER: ANSWER: 4.``）。
      默认 auto：tokenizer 自带 chat_template 就用，``chat=False`` 可关。
@@ -135,8 +135,8 @@ class _HFGenerator:
         if self._tok.pad_token is None:
             self._tok.pad_token = self._tok.eos_token
         # **必须左填充**：decoder-only 模型批量生成时，右填充会让模型在 pad 之后继续
-        # 续写，直接产出错位/垃圾结果（transformers 只会打一行 warning，不报错）。
-        # 单题跑看不出来，只有 batch>1 才中招——早期版本这里就是右填充。
+        # 续写，直接产出错位的结果（transformers 只会打一行 warning，不报错）。
+        # 单题跑不会暴露，只有 batch>1 才会触发。
         self._tok.padding_side = "left"
         self.chat = bool(getattr(self._tok, "chat_template", None)) if chat == "auto" else bool(chat)
 

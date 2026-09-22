@@ -53,12 +53,12 @@
       "coverage": 0.7430340557275542
     }
   },
-  "elapsed_s": 23.4,
+  "elapsed_s": 16.5,
   "passed": true,
   "meta": {
     "script": "preflight.py",
-    "created_utc": "2026-09-22T05:42:11Z",
-    "git_commit": "57ab88d+dirty",
+    "created_utc": "2026-09-22T06:48:10Z",
+    "git_commit": "ab363f3+dirty",
     "env": {
       "python": "3.14.4",
       "platform": "Windows-11-10.0.26200-SP0",

@@ -167,7 +167,7 @@ def self_check(rows, cfg, benchmark, mode):
         print(f"  [不一致] {d['id']}: ref={d['ref']!r} -> pred_val={d['pred_val']!r} "
               f"status={d['status']}")
     if bad:
-        print(f"  !! {len(bad)} 条自判不一致 = 判分 bug，先修 src/grading.py 再花钱跑模型")
+        print(f"  !! {len(bad)} 条自判不一致：判定逻辑不成立，请先修 src/grading.py")
     return detail, len(bad)
 
 
@@ -189,6 +189,8 @@ def main():
     p.add_argument("--max-new-tokens", type=int, default=None)
     p.add_argument("--batch-size", type=int, default=8)
     p.add_argument("--save", action="store_true", help="保存 json")
+    p.add_argument("--out-dir", default=str(RESULTS),
+                   help="结果输出目录；管道验证建议用 results/smoke 以区别于正式实验")
     p.add_argument("--self-check", action="store_true",
                    help="判分自检：用参考答案当预测，正确率必须 100%%（不调模型）")
     p.add_argument("--quiet", action="store_true")
@@ -214,7 +216,7 @@ def main():
     if args.self_check:
         detail, n_bad = self_check(rows, cfg, benchmark, mode)
         if args.save:
-            f = RESULTS / f"selfcheck_{benchmark}.json"
+            f = Path(args.out_dir) / f"selfcheck_{benchmark}.json"
             meta_mod.write_json(f, {
                 "meta": meta_mod.result_meta("run_eval.py --self-check", benchmark=benchmark,
                                              mode=mode, n=len(rows)),
@@ -226,9 +228,8 @@ def main():
         return 1 if n_bad else 0
 
     # ---------------- 模型列表（config.models = {smoke:[...], core:[...], large:[...]}）
-    # --models 的每一项既可以是模型名，也可以是**池名**（smoke/core/large），
-    # 例如 --models "core,Qwen/Qwen2.5-0.5B-Instruct"。config.yaml 一直这么写着，
-    # 早期实现却把 "core" 当模型名去加载，直接报错。
+    # --models 的每一项既可以是模型名，也可以是池名（smoke/core/large），
+    # 例如 --models "core,Qwen/Qwen2.5-0.5B-Instruct"。
     mdict = cfg.get("models", {})
     if args.models:
         models = []
@@ -241,7 +242,7 @@ def main():
             else:
                 models.append(tok)
     elif args.models_all:
-        # 不含 smoke：那是链路验证用的玩具模型，不该混进论文表
+        # 不含 smoke：该池仅用于管道验证
         models = list(mdict.get("core", [])) + list(mdict.get("large", []))
     elif args.model:
         models = [args.model]
@@ -272,8 +273,9 @@ def main():
                 prompt_fingerprint=fp, self_check=args.self_check)
             if args.save:
                 fname = f"eval_{benchmark}_{mode}_{m.replace('/', '__')}.json"
-                meta_mod.write_json(RESULTS / fname, rep)
-                print(f"[save] results/{fname}")
+                out_dir = Path(args.out_dir)
+                meta_mod.write_json(out_dir / fname, rep)
+                print(f"[save] {out_dir / fname}")
                 print(f"       单题均耗时 {dt / max(len(rows), 1):.2f}s | 提示词指纹 "
                       f"{rep['prompt_fingerprint']} | commit {rep['meta']['git_commit']}")
         except KeyboardInterrupt:

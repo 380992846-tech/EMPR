@@ -1,8 +1,8 @@
 """统计工具（src/stats.py）测试。
 
 CI 的**可复现性**是硬要求：同一 seed 必须在任何机器给出同一个 CI，否则云上/本地
-两份结果对不上。早期版本在装了 numpy 的环境走 numpy 路径、否则走纯 Python 路径，
-两种环境 CI 会漂移——这里把它钉住。
+两份结果对不上。若 CI 同时存在 numpy 与纯 Python 两条实现路径，
+两种环境会得到不同结果，因此这里统一为纯 Python 实现并固定下来。
 """
 from __future__ import annotations
 

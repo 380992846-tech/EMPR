@@ -7,14 +7,14 @@
   4. recovery(k) = (perf_restore_k - perf_corrupt) / (perf_clean - perf_corrupt)
   5. 画 recovery-vs-layer 曲线，峰值层 = 该题答案"经过"的关键层。
 
-⚠ 三个必须守住的点（否则曲线没有意义）：
+注意：三个必须守住的点（否则曲线没有意义）：
   * **clean 必须本来答对**：clean 都答错时，"恢复多少"无从谈起，直接跳过并计数。
   * **corrupt 必须真的掉分**：如果换掉数字后性能不变，说明这道题模型本来就没算，
     recovery 的分母≈0，会炸成任意大数；这类题跳过并计数。
-  * **只恢复目标层**：早期版本在"每层都挂 hook"的同时恢复，等价于全层污染。
+  * **只恢复目标层**：其余层保持 corrupt 状态，否则等价于全层污染，曲线失去意义。
 
-⚠ 只对开放权重模型做隐藏态干预（闭源 API 不可复现，审稿人会质疑）。
-⚠ 逐层要一次前向：7B/28 层 × 8 题 ≈ 200+ 次前向，题数给 8-20，`--layer-step` 可再省。
+注意：只对开放权重模型做隐藏态干预（闭源 API 不可复现，审稿人会质疑）。
+注意：逐层要一次前向：7B/28 层 × 8 题 ≈ 200+ 次前向，题数给 8-20，`--layer-step` 可再省。
 
 用法：
   python scripts/run_causal_tracing.py --model Qwen/Qwen2.5-7B-Instruct \
@@ -53,11 +53,10 @@ _QUANTITY_RE = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?" + _UNIT_TAIL)
 def corrupt_quantities(question: str):
     """C2：把"数字 + 单位"整体替换为无语义占位符，保留句法结构。
 
-    ⚠ 必须吃下 LaTeX 单位。SciBench 题面几乎全是
-    ``$1000 \\mathrm{~kg}$`` / ``$9.8 \\mathrm{m/s^2}$`` 这种写法，早期版本的正则只认
-    ``[A-Za-z]`` 单位，于是数字根本没被换掉、只把 ``m/s^2`` 的指数 2 换成了占位符：
-    corrupt 题面变成 ``\\mathrm{m/s^zork blork}``——既没"损坏"物理量，又引入了畸形单位，
-    Week 3 的整条曲线都会建立在无效的 corrupt 上。
+    注意：必须吃下 LaTeX 单位。SciBench 题面几乎全是
+    ``$1000 \\mathrm{~kg}$`` / ``$9.8 \\mathrm{m/s^2}$`` 这种写法，正则必须能识别
+    LaTeX 单位：只认 ``[A-Za-z]`` 会漏掉数值本身，只把 ``m/s^2`` 的指数换成占位符，
+    结果是既没有替换物理量、又留下畸形单位，整条曲线建立在无效的 corrupt 之上。
     """
     return _QUANTITY_RE.sub(_PLACEHOLDER, question)
 
@@ -67,7 +66,7 @@ def score_answer(text: str, ref: str, tol: float = 0.05, abs_tol: float = 0.01):
 
     **必须用 extract_number**（抠出"最终答案"）而不是 parse_number(整段输出)：
     对 CoT 输出直接 parse_number 会取到推理过程里的第一个数字，把"答对"算成"答错"，
-    进而让 clean/corrupt 的性能差变成噪声（早期版本就是这么写的）。
+    进而让 clean/corrupt 的性能差变成噪声。
     perf 用连续分 1-相对误差，比 0/1 平滑，适合做逐层曲线；correct 用容差判定。
     """
     ref_v = parse_number(ref)
@@ -193,8 +192,7 @@ def make_restore_hook(idx, restore_layer, clean_states):
     两条守卫：
       * ``idx == restore_layer``：只碰目标层，其余层保持 corrupt（逐层恢复的核心语义）；
       * ``h.shape[1] > 1``：只在 prefill 时替换。解码步每步序列长度是 1，
-        若不判断就会把 clean 的位置 0 写进新 token 的位置，生成结果整段变味，
-        而曲线上看不出异常（早期版本正是如此）。
+        否则会把 clean 的位置 0 写进新 token 的位置，生成结果失真且曲线上看不出异常。
     """
     def hook(module, args, output):
         h = _unpack_hidden(output)
@@ -232,6 +230,8 @@ def main():
     p.add_argument("--max-new-tokens", type=int, default=128)
     p.add_argument("--device", default="auto")
     p.add_argument("--save", action="store_true")
+    p.add_argument("--out-dir", default=str(RESULTS),
+                   help="结果输出目录；管道验证建议用 results/smoke 以区别于正式实验")
     p.add_argument("--plot", action="store_true", help="画平均恢复率曲线（需 matplotlib）")
     args = p.parse_args()
 
@@ -320,7 +320,7 @@ def main():
         print("[ct] 没有任何有效题目：换更大的模型/更多题数，或先看 clean 是否答得对。")
 
     if args.save:
-        f = RESULTS / f"causal_tracing_{benchmark}_{model_name.replace('/', '__')}.json"
+        f = Path(args.out_dir) / f"causal_tracing_{benchmark}_{model_name.replace('/', '__')}.json"
         write_json(f, {
             "meta": meta_mod.result_meta(
                 "run_causal_tracing.py", model=model_name, benchmark=benchmark,
@@ -359,7 +359,7 @@ def main():
             ax.set_title(f"causal tracing - {model_name.split('/')[-1]} "
                          f"({len(all_curves)} problems)")
             ax.legend()
-            out = RESULTS / f"causal_tracing_{benchmark}_{model_name.replace('/', '__')}.png"
+            out = Path(args.out_dir) / f"causal_tracing_{benchmark}_{model_name.replace('/', '__')}.png"
             fig.savefig(out, dpi=150, bbox_inches="tight")
             print(f"[plot] {out}")
         except Exception as e:

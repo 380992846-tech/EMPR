@@ -6,7 +6,7 @@
   - wording   ：改表层措辞，物理不变
 若模型是"记忆/检索"，对数值扰动应不敏感；若真做计算，输出应按物理规律成比例变化。
 
-⚠ 真实结果该是什么就是什么，不要为凑结论调阈值。
+注意：真实结果该是什么就是什么，不要为凑结论调阈值。
 
 本版本做了三项硬化（LaTeX 感知，适配 SciBench 的 $...$/\\mathrm{...} 题面）：
   1) numeric_perturb 不再误伤下标/上标/科学计数法指数（H_2、x^2、10^{3} 不再被改变、也不会把
@@ -14,7 +14,7 @@
   2) quantity_swap 能识别 \\mathrm{kg}、\\mathrm{~cm}、km / hr、kJ / mol 这类 LaTeX 单位，
      并映射到物理量。
   3) wording_change 用"零语义改动"的改写规则集（换问法/换同义短语，绝不触碰物理量），
-     并报告覆盖率——覆盖率低就如实写，不硬凑。
+     并报告覆盖率；覆盖率低时如实记录，不放宽判据以凑样本。
 
 用法：
   python scripts/run_sensitivity.py --model Qwen/Qwen2.5-7B-Instruct \
@@ -457,7 +457,7 @@ def _variant_report(vname, items, arr, base_flags, var_flags):
         "n_changed": len(items),
         "n_parsed": n_parsed,
         "n_unparsed": len(items) - n_parsed,
-        # ⚠ 敏感度 = |Δ|/(|base|+eps)，当 base≈0 时会爆成极大值，**mean 会被单个离群点带飞**
+        # 注意：敏感度 = |Δ|/(|base|+eps)，当 base≈0 时会爆成极大值，**mean 会被单个离群点带飞**
         # （0.5B 冒烟里 wording 的 mean=2983 而 median=0.0）。论文请报 median 与 p90。
         "mean_sensitivity": float(a.mean()) if n_parsed else None,
         "median_sensitivity": float(np.median(a)) if n_parsed else None,
@@ -468,7 +468,9 @@ def _variant_report(vname, items, arr, base_flags, var_flags):
     }
 
 
-def _run_with_model(model, rows, variants, gen, mode, seed, save, meta_extra=None):
+def _run_with_model(model, rows, variants, gen, mode, seed, save, meta_extra=None,
+                    out_dir=None):
+    out_dir = Path(out_dir) if out_dir else RESULTS
     base_prompts = prompts_mod.build_prompts(rows, mode=mode)
     print(f"[sens] base 推理 {len(rows)} 题（{mode}）...")
     base_out = gen.gen_batch(base_prompts)
@@ -499,8 +501,8 @@ def _run_with_model(model, rows, variants, gen, mode, seed, save, meta_extra=Non
         try:
             v_out = gen.gen_batch(prompts_mod.build_prompts(v_rows, mode=mode))
         except Exception as e:
-            # 一个变体挂掉不该让另外两个变体的结果一起丢（长跑无人值守时尤其重要：
-            # 云上跑了两小时，回来发现 OOM 把整份汇总都带走了）。记录错误后继续。
+            # 单个变体失败不应导致其余变体的结果一并丢失（长时间任务尤其重要：
+            # 最后一个变体若因显存不足或超时中断，已完成变体的结果仍然保留）。记录错误后继续。
             print(f"[error] 变体 {vname} 推理失败: {type(e).__name__}: {e}")
             summary["variants"][vname] = {"error": f"{type(e).__name__}: {e}",
                                           "n_changed": len(v_rows)}
@@ -567,20 +569,21 @@ def _run_with_model(model, rows, variants, gen, mode, seed, save, meta_extra=Non
                   f"McNemar p={p_txt})")
 
         if save:
-            f = RESULTS / f"sensitivity_{vname}_{model.replace('/', '__')}.json"
+            f = out_dir / f"sensitivity_{vname}_{model.replace('/', '__')}.json"
             write_json(f, {"model": model, "variant": vname, "mode": mode,
                            "n": len(v_rows), **rep, "items": items})
             print(f"[save] {f}")
-            # 每完成一个变体就刷新一次汇总：云上跑两小时时，最后一个变体被 OOM/超时
-            # 打断也不至于把前面两个变体的结果一起丢掉。
-            _save_summary(summary, model)
+            # 每完成一个变体即刷新汇总文件：长任务被中断时，
+            # 已完成变体的结果不会随最后一步一起丢失。
+            _save_summary(summary, model, out_dir)
 
     if save:
-        _save_summary(summary, model)
+        _save_summary(summary, model, out_dir)
 
 
-def _save_summary(summary, model):
-    f = RESULTS / f"sensitivity_summary_{model.replace('/', '__')}.json"
+def _save_summary(summary, model, out_dir=None):
+    out_dir = Path(out_dir) if out_dir else RESULTS
+    f = out_dir / f"sensitivity_summary_{model.replace('/', '__')}.json"
     write_json(f, summary)
     print(f"[save] {f}")
 
@@ -603,6 +606,8 @@ def main():
     p.add_argument("--variants", default="numeric,wording,swap",
                    help="逗号分隔，默认三个全跑")
     p.add_argument("--save", action="store_true")
+    p.add_argument("--out-dir", default=str(RESULTS),
+                   help="结果输出目录；管道验证建议用 results/smoke 以区别于正式实验")
     p.add_argument("--coverage", action="store_true",
                    help="干跑：只测三个变体的覆盖率，不调用模型")
     p.add_argument("--seed", type=int, default=None)
@@ -620,7 +625,7 @@ def main():
     if args.coverage:
         rep = report_coverage(rows, seed=seed)
         if args.save:
-            f = RESULTS / f"sensitivity_coverage_{benchmark}.json"
+            f = Path(args.out_dir) / f"sensitivity_coverage_{benchmark}.json"
             write_json(f, {"meta": meta_mod.result_meta(
                 "run_sensitivity.py --coverage", benchmark=benchmark, seed=seed,
                 n_problems=len(rows)), "benchmark": benchmark, "n_problems": len(rows),
@@ -656,7 +661,7 @@ def main():
         "benchmark": benchmark,
         "max_new_tokens": max_new_tokens,
         "data_composition": data_mod.composition(rows),
-    })
+    }, out_dir=args.out_dir)
 
 
 if __name__ == "__main__":

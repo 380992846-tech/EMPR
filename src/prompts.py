@@ -1,15 +1,14 @@
 """提示词模板（唯一真源）。
 
-⚠ 模板**不在** config.yaml —— 早期 config 里有个 prompts 段，已删除（run_eval 实际用的
-是这里），避免两处不一致。要改问法，改本文件。
+模板**不在** config.yaml 中：判分与推理都只依赖本文件，避免两处定义不一致。
+调整问法只需修改本文件。
 
 与判分的一致性（重要）：``src/grading.py`` 的提取顺序是
 ``ANSWER:`` 行 -> ``\\boxed{}`` -> "answer is X" -> 末行数 -> 全文最后一个数。
-因此**每种模式都必须显式要求 "ANSWER:" 行**，否则只能靠"全文最后一个数"兜底——
-早期 ``direct`` 模板只说 "Give only the final numeric answer" 没要求 ANSWER: 行，
-而 sensitivity 默认就跑 direct，等于让一半实验的判定精度白白掉一档。
+因此**每种模式都必须显式要求 "ANSWER:" 行**；否则判定只能依赖"全文最后一个数"兜底，
+而 Week 2 的敏感性实验默认使用 direct 模式，精度会整体下降。
 
-另：选择题（MMLU / 带 A. B. C. D. 选项的题）不能用数值模板，会自动换成要求字母的模板。
+另：选择题（MMLU / 带 A. B. C. D. 选项的题）不使用数值模板，会自动切换为要求字母的模板。
 """
 from __future__ import annotations
 

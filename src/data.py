@@ -39,7 +39,7 @@ HF_CANDIDATES = {
 # ---------------------------------------------------------------- 子域映射（唯一真源）
 # SciBench 科目 -> 物理子域。**这里是唯一的真源**：src/data.py 的加载路径与
 # scripts/download_data.py 的落盘路径都从这里取，避免"落盘写 general、加载时又
-# 想标成 quantum"这类两处不一致（早期版本正是如此，导致 154/323 题被并进 general）。
+# 想标成 quantum"这类两处不一致（会使部分科目被并入 general，子域统计失真）。
 SCIBENCH_SUBJECT_DOMAIN = {
     "class": "mechanics",        # 经典力学
     "classical": "mechanics",    # 兼容 "Classical Mechanics" 写法
@@ -64,7 +64,7 @@ def _norm(rows, name, subset, question_keys, answer_keys, solution_keys,
     """从任意行的 dict 里按候选键抽字段。
 
     domain_from_subset=True 时忽略行内自带的 domain 字段，改用文件名/子集名推导子域
-    （SciBench 本地 jsonl 的 domain 字段是早期版本写下的，已在部分科目上过时）。
+    （SciBench 本地 jsonl 自带的 domain 字段不保证与当前映射一致）。
     """
     out = []
     for i, r in enumerate(rows):
@@ -196,8 +196,8 @@ def _join_solution(x):
 
 
 # ---------------------------------------------------------------- MMLU
-# cais/mmlu 里**没有** "physics" 这个 config（早期代码写的 "physics" 必然抛
-# BuilderConfig not found，于是 MMLU 这条 sanity check 一直是死的）。物理相关的三个 config：
+# cais/mmlu 里**没有** "physics" 这个 config（写错会抛 BuilderConfig not found）。
+# 物理相关的三个 config：
 MMLU_PHYSICS_CONFIGS = ["high_school_physics", "college_physics", "conceptual_physics"]
 
 
@@ -251,9 +251,9 @@ def load_mmlu_physics(max_n=None, configs=None):
 def _load_local_dir(name, subsets, max_n):
     """扫描 data/<name>/ 下所有 .json/.jsonl，防御式提取。
 
-    `domain_from_subset=True`（SciBench）：子域由文件名（科目）推导，而不是用行内
-    自带的 domain 字段——早期 download_data.py 把 quan/diff 都写成了 "general"，
-    直接用行内字段会让 154/323 题挤进同一个桶，子域表失去意义。
+    `domain_from_subset=True`（SciBench）：子域由文件名（科目）推导，而不使用行内自带的
+    domain 字段。落盘文件中的该字段不保证与当前映射一致，若直接采用会使部分科目被并入
+    同一子域，子域统计随之失真。
     """
     d = DATA_DIR / name
     if not d.exists():

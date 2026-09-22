@@ -15,7 +15,7 @@
 # 前置：已 `git clone https://github.com/380992846-tech/EMPR` 并在仓库根目录执行本脚本。
 # 若网络下载慢：export HF_ENDPOINT=https://hf-mirror.com
 #
-# 设计原则：**先在免费步骤上失败，别在烧卡的步骤上失败。**
+# 设计原则：**先在零成本步骤上暴露问题，再执行 GPU 全量实验。**
 # ============================================================================
 set -euo pipefail
 
@@ -50,7 +50,7 @@ echo "  python3: $(python3 --version)"
 if command -v nvidia-smi >/dev/null 2>&1; then
   nvidia-smi --query-gpu=name,memory.total --format=csv,noheader | sed 's/^/  GPU: /'
 else
-  warn "未检测到 nvidia-smi：只能跑 CPU 冒烟，别指望全量"
+  warn "未检测到 nvidia-smi：仅可执行 CPU 管道验证" 
 fi
 
 if [ ! -d .venv ]; then
@@ -84,7 +84,7 @@ python scripts/download_data.py --benchmark olympiadbench || warn "OlympiadBench
 
 # ---------------------------------------------------------------------------
 banner "3/9  单元测试（判分/统计/变体/数据/提示词）"
-python -m pytest tests -q || die "单元测试失败：先修代码，别往下跑"
+python -m pytest tests -q || die "单元测试未通过：请先修复，再继续后续步骤"
 
 # ---------------------------------------------------------------------------
 banner "4/9  一键体检：依赖 + 数据 + 判分自洽 + 变体覆盖率"

@@ -1,6 +1,6 @@
 """一条命令的"上云前体检"：把所有零成本检查跑完，输出一份可归档的体检报告。
 
-用途：在花钱调模型之前（以及 CI / 无人值守跑之前）确认
+用途：在执行 GPU 全量实验之前（以及 CI 流水线中）确认
   1. 依赖与数据是否齐；
   2. 参考答案是否都能解析（严格解析器口径）；
   3. 判分回归用例是否全过；
@@ -167,10 +167,10 @@ def main():
     report["passed"] = not fatal
     report["meta"] = meta_mod.result_meta("preflight.py", benchmark=benchmark, seed=seed)
 
-    print(f"\n===== 体检结论：{'PASS ✓' if not fatal else 'FAIL ✗'} "
+    print(f"\n===== 体检结论：{'PASS' if not fatal else 'FAIL'} "
           f"（{report['elapsed_s']}s）=====")
     if fatal:
-        print("先修上面的 FAIL 项，再上云跑全量（判分坏了跑再多题都是白花钱）。")
+        print("请先修复上方 FAIL 项，再执行 GPU 全量实验（判分不成立时，全量结果无效）。")
     else:
         print("可以上云跑全量了。建议顺序见 DEPLOY_CHECKLIST.md 第 5 节。")
     if args.save:

@@ -3,7 +3,7 @@
 用法：
   python scripts/check_grading.py --file results/eval_*.json
 
-它会报出四件在花钱全量跑之前必须确认的事：
+它报告四项在 GPU 全量实验前必须确认的信息：
   1) ``status`` 分布：correct / incorrect / unparsed_pred / unscorable_ref
      - ``unparsed_pred``（模型没给出可解析答案）比例高 -> 判分或提示词有问题
      - ``unscorable_ref``（参考答案本身解析不了）-> 这些题已剔除出分母，需在论文里写明
@@ -12,7 +12,7 @@
   4) 抽样打印（优先 null / 判错样例），供人工核对
 
 判定目标：unparsed_pred 尽量低、被判 wrong 的确实是错的。
-若 unparsed_pred 偏高，先调 src/grading.py 或 src/prompts.py，别急着全量跑。
+若 `unparsed_pred` 偏高，应先调整 src/grading.py 或 src/prompts.py，再执行全量实验。
 """
 from __future__ import annotations
 

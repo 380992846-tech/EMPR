@@ -93,10 +93,10 @@ def test_build_variant_reports_subset_only(sensitivity):
 
 # ---------------------------------------------------------------- corrupt（因果追踪）
 def test_corrupt_replaces_quantities_but_keeps_structure(causal):
-    """SciBench 题面全是 LaTeX，corrupt 必须连 $1000 \\mathrm{~kg}$ 一起换掉。
+    """SciBench 题面几乎全是 LaTeX，corrupt 必须连 $1000 \\mathrm{~kg}$ 一并替换。
 
-    早期正则只认 [A-Za-z] 单位：数字没被换掉，反而把 `m/s^2` 的指数换成占位符，
-    得到 `\\mathrm{m/s^zork blork}` —— corrupt 既没损坏物理量，又引入了畸形单位。
+    要求：正则能识别 LaTeX 单位。若只认 [A-Za-z] 单位，数值本身不会被替换，
+    只会把 `m/s^2` 的指数换成占位符，得到 `\\mathrm{m/s^zork blork}` 这类畸形结果。
     """
     q = "A $2 \\mathrm{kg}$ block slides $3 \\mathrm{m}$ at $9.8 \\mathrm{m/s^2}$."
     c = causal.corrupt_quantities(q)
@@ -116,7 +116,7 @@ def test_corrupt_handles_sci_notation_and_bare_units(causal):
 
 
 def test_score_answer_uses_final_answer_not_first_number(causal):
-    # 关键回归：CoT 输出里第一个数字是中间量，早期用 parse_number(整段) 会把答对算成答错
+    # 关键回归：CoT 输出的第一个数字通常是中间量，评分必须基于最终答案
     text = "Step 1: we have 3 known values. Step 2: compute. ANSWER: 19.8"
     ok, perf = causal.score_answer(text, "19.8")
     assert ok and perf == 1.0

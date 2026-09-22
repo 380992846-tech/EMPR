@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "script": "prompt_stats.py",
+    "created_utc": "2026-09-22T06:43:07Z",
+    "git_commit": "ab363f3+dirty",
+    "env": {
+      "python": "3.14.4",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "cpu_count": 16,
+      "torch": "2.11.0+cpu",
+      "cuda_available": false,
+      "transformers": "5.5.3",
+      "vllm": null
+    },
+    "argv": [],
+    "tokenizer": "Qwen/Qwen2.5-0.5B-Instruct"
+  },
+  "tokenizer": "Qwen/Qwen2.5-0.5B-Instruct",
+  "chat_overhead": 1,
+  "prompt_tokens": {
+    "scibench/cot": {
+      "n": 323,
+      "mean": 127.3,
+      "p50": 116,
+      "p90": 183,
+      "max": 456,
+      "total": 41108
+    },
+    "scibench/direct": {
+      "n": 323,
+      "mean": 122.3,
+      "p50": 111,
+      "p90": 178,
+      "max": 451,
+      "total": 39493
+    },
+    "olympiadbench/cot": {
+      "n": 351,
+      "mean": 152.5,
+      "p50": 142,
+      "p90": 252,
+      "max": 817,
+      "total": 53511
+    },
+    "olympiadbench/direct": {
+      "n": 351,
+      "mean": 147.5,
+      "p50": 137,
+      "p90": 247,
+      "max": 812,
+      "total": 51756
+    },
+    "mmlu_physics/cot": {
+      "n": 488,
+      "mean": 105.8,
+      "p50": 98,
+      "p90": 152,
+      "max": 295,
+      "total": 51619
+    },
+    "mmlu_physics/direct": {
+      "n": 488,
+      "mean": 93.8,
+      "p50": 86,
+      "p90": 140,
+      "max": 283,
+      "total": 45763
+    }
+  }
+}
