@@ -1,0 +1,94 @@
+{
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "mode": "direct",
+  "total_questions": 8,
+  "seed": 42,
+  "variants": {
+    "numeric": {
+      "n_changed": 7,
+      "n_parsed": 7,
+      "n_unparsed": 0,
+      "mean_sensitivity": 9.874291702618283,
+      "median_sensitivity": 2.199999560000088,
+      "unchanged_share": 0.14285714285714285,
+      "response_rate": 0.8571428571428572,
+      "accuracy_paired": null,
+      "p90_sensitivity": 26.100139972143026
+    },
+    "wording": {
+      "n_changed": 8,
+      "n_parsed": 8,
+      "n_unparsed": 0,
+      "mean_sensitivity": 2983.814364720954,
+      "median_sensitivity": 0.0,
+      "unchanged_share": 0.625,
+      "response_rate": 0.375,
+      "accuracy_paired": {
+        "n_paired": 8,
+        "base_acc": 0.125,
+        "variant_acc": 0.125,
+        "delta": 0.0,
+        "mcnemar_p": null
+      },
+      "p90_sensitivity": 7161.5525906201465
+    },
+    "swap": {
+      "n_changed": 1,
+      "n_parsed": 1,
+      "n_unparsed": 0,
+      "mean_sensitivity": 0.0,
+      "median_sensitivity": 0.0,
+      "unchanged_share": 1.0,
+      "response_rate": 0.0,
+      "accuracy_paired": null,
+      "p90_sensitivity": 0.0
+    }
+  },
+  "meta": {
+    "script": "run_sensitivity.py",
+    "created_utc": "2026-09-22T04:46:49Z",
+    "git_commit": "6944aa8+dirty",
+    "env": {
+      "python": "3.14.4",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "cpu_count": 16,
+      "torch": "2.11.0+cpu",
+      "cuda_available": false,
+      "transformers": "5.5.3",
+      "vllm": null
+    },
+    "argv": [
+      "--model",
+      "Qwen/Qwen2.5-0.5B-Instruct",
+      "--benchmark",
+      "scibench",
+      "--max-problems",
+      "8",
+      "--mode",
+      "direct",
+      "--max-new-tokens",
+      "64",
+      "--batch-size",
+      "2",
+      "--variants",
+      "numeric,wording,swap",
+      "--save"
+    ],
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "benchmark": "scibench",
+    "mode": "direct",
+    "backend": "transformers/cpu",
+    "max_new_tokens": 64,
+    "n_problems": 8
+  },
+  "benchmark": "scibench",
+  "max_new_tokens": 64,
+  "data_composition": {
+    "mechanics": 2,
+    "math": 2,
+    "general": 1,
+    "optics": 1,
+    "quantum": 1,
+    "thermodynamics": 1
+  }
+}

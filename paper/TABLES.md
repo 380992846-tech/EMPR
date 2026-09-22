@@ -42,7 +42,10 @@
   | numeric | 305/323 | 94.4% |
   | wording | 240/323 | 74.3% |
   | swap | 36/323 | 11.1% |
-- **列说明**：Variant | coverage | n_parsed | n_unparsed | mean/median sensitivity | unchanged_share | response_rate。
+- **列说明**：Variant | coverage | n_parsed | n_unparsed | median sensitivity | p90 | unchanged_share | response_rate。
+- **⚠ 统计量选择**：敏感度是 `|Δ|/(|base|+ε)`，`base≈0` 时会被单个样本带到天上——
+  0.5B 冒烟里 wording 的 `mean=2983.8` 而 `median=0.000`。
+  **论文请报 median 与 p90，不要报 mean**（脚本三者都输出，打印时会标注这一点）。
 - **三个变体的语义（论文里必须写清）**：
   - `numeric`：换数值（物理结构不变，factor=2.0，最多改 2 个数）——**主信号**。
     真算的模型输出应随物理关系变化；靠检索/模式匹配则可能纹丝不动。

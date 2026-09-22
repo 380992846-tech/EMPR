@@ -1,0 +1,26 @@
+{
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "variant": "swap",
+  "mode": "direct",
+  "n": 1,
+  "n_changed": 1,
+  "n_parsed": 1,
+  "n_unparsed": 0,
+  "mean_sensitivity": 0.0,
+  "median_sensitivity": 0.0,
+  "unchanged_share": 1.0,
+  "response_rate": 0.0,
+  "accuracy_paired": null,
+  "items": [
+    {
+      "id": "scibench-class-0-swap",
+      "base_id": "scibench-class-0",
+      "domain": "mechanics",
+      "question_variant": "An automobile with a mass of $20 \\mathrm{~kg}$, including passengers, settles $1.0 \\mathrm{~cm}$ closer to the road for every additional $100 \\mathrm{~kg}$ of passengers. It is driven with a constant horizontal component of speed $1000 \\mathrm{~km} / \\mathrm{h}$ over a washboard road with sinusoidal bumps. The amplitude and wavelength of the sine curve are $5.0 \\mathrm{~cm}$ and $20 \\mathrm{~cm}$, respectively. The distance between the front and back wheels is $2.4 \\mathrm{~m}$. Find the amplitude of oscillation of the automobile, assuming it moves vertically as an undamped driven harmonic oscillator. Neglect the mass of the wheels and springs and assume that the wheels are always in contact with the road.",
+      "base_pred": 0.8,
+      "variant_pred": 0.8,
+      "sensitivity": 0.0
+    }
+  ],
+  "p90_sensitivity": 0.0
+}

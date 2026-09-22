@@ -1,0 +1,133 @@
+{
+  "meta": {
+    "script": "run_causal_tracing.py",
+    "created_utc": "2026-09-22T04:32:04Z",
+    "git_commit": "6944aa8+dirty",
+    "env": {
+      "python": "3.14.4",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "cpu_count": 16,
+      "torch": "2.11.0+cpu",
+      "cuda_available": false,
+      "transformers": "5.5.3",
+      "vllm": null
+    },
+    "argv": [
+      "--model",
+      "Qwen/Qwen2.5-0.5B-Instruct",
+      "--benchmark",
+      "scibench",
+      "--max-problems",
+      "6",
+      "--mode",
+      "direct",
+      "--layer-step",
+      "4",
+      "--max-new-tokens",
+      "48",
+      "--save"
+    ],
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "benchmark": "scibench",
+    "mode": "direct",
+    "n_layers": 24,
+    "layer_step": 4,
+    "max_new_tokens": 48,
+    "device": "cpu"
+  },
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "benchmark": "scibench",
+  "mode": "direct",
+  "n_layers": 24,
+  "layer_step": 4,
+  "n_valid": 1,
+  "n_skipped_clean_wrong": 5,
+  "n_skipped_corrupt_flat": 0,
+  "average_curve": [
+    {
+      "layer": 0,
+      "mean_recovery": 0.2174,
+      "std": 0.0,
+      "n": 1
+    },
+    {
+      "layer": 4,
+      "mean_recovery": 0.0,
+      "std": 0.0,
+      "n": 1
+    },
+    {
+      "layer": 8,
+      "mean_recovery": 0.0,
+      "std": 0.0,
+      "n": 1
+    },
+    {
+      "layer": 12,
+      "mean_recovery": 0.4348,
+      "std": 0.0,
+      "n": 1
+    },
+    {
+      "layer": 16,
+      "mean_recovery": 0.4348,
+      "std": 0.0,
+      "n": 1
+    },
+    {
+      "layer": 20,
+      "mean_recovery": 0.0,
+      "std": 0.0,
+      "n": 1
+    }
+  ],
+  "problems": {
+    "scibench-fund-0": {
+      "ref": "4.8",
+      "domain": "general",
+      "perf_clean": 0.9583,
+      "perf_corrupt": 0.0,
+      "peak_layer": 12,
+      "peak_recovery": 0.4348,
+      "corrupt_prompt": "In an orienteering class, you have the goal of moving as far (straight-line distance) from base camp as possible by making three straight-line moves. You may use the following displacements in any order: (a) $\\vec{a}, zork blork$ due east (directly toward the east); (b) $\\vec{b}, zork blork zork blork^{\\circ}$ north of east (at an angle of $zork blork^{\\circ}$ toward the north from due east); (c) $\\vec{c}, zork blork$ due west. Alternatively, you may substitute either $-\\vec{b}$ for $\\vec{b}$ or $-\\vec{c}$ for $\\vec{c}$. What is the greatest distance you can be from base camp at the end of the third displacement? (We are not concerned about the direction.)",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.2083,
+          "recovery": 0.2174,
+          "correct": false
+        },
+        {
+          "layer": 4,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 8,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 12,
+          "perf": 0.4167,
+          "recovery": 0.4348,
+          "correct": false
+        },
+        {
+          "layer": 16,
+          "perf": 0.4167,
+          "recovery": 0.4348,
+          "correct": false
+        },
+        {
+          "layer": 20,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    }
+  }
+}

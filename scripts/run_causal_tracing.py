@@ -322,11 +322,15 @@ def main():
     if args.save:
         f = RESULTS / f"causal_tracing_{benchmark}_{model_name.replace('/', '__')}.json"
         write_json(f, {
-            "meta": meta_mod.result_meta("run_causal_tracing.py", model=model_name,
-                                        benchmark=benchmark, mode=args.mode,
-                                        n_layers=n_layers, layer_step=step,
-                                        max_new_tokens=args.max_new_tokens,
-                                        device=device),
+            "meta": meta_mod.result_meta(
+                "run_causal_tracing.py", model=model_name, benchmark=benchmark,
+                mode=args.mode, n_layers=n_layers, layer_step=step,
+                max_new_tokens=args.max_new_tokens, device=device,
+                n_problems=len(rows),
+                chat_template=bool(getattr(tok, "chat_template", None)),
+                prompt_fingerprint=meta_mod.fingerprint(
+                    prompts_mod.build_prompt(rows[0]["question"], mode=args.mode))
+                if rows else None),
             "model": model_name, "benchmark": benchmark, "mode": args.mode,
             "n_layers": n_layers, "layer_step": step,
             "n_valid": len(all_curves), "n_skipped_clean_wrong": n_skip_clean,

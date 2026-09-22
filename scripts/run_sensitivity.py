@@ -436,7 +436,7 @@ def _variant_report(vname, items, arr, base_flags, var_flags):
     import numpy as np
     a = np.array(arr) if arr else np.array([float("nan")])
     n_parsed = len(arr)
-    unchanged = float((a < UNCHANGED_EPS).mean()) if n_parsed else float("nan")
+    unchanged = float((a < UNCHANGED_EPS).mean()) if n_parsed else None
 
     # 配对准确率（只有物理答案不变的变体才可算：wording）
     acc_pair = None
@@ -444,19 +444,24 @@ def _variant_report(vname, items, arr, base_flags, var_flags):
         base_acc = sum(base_flags) / len(base_flags)
         var_acc = sum(var_flags) / len(var_flags)
         from src.stats import paired_significance
+        p = paired_significance(base_flags, var_flags)
         acc_pair = {
             "n_paired": len(base_flags),
             "base_acc": round(base_acc, 4),
             "variant_acc": round(var_acc, 4),
             "delta": round(var_acc - base_acc, 4),
-            "mcnemar_p": paired_significance(base_flags, var_flags),
+            # 两组完全一致时 McNemar 无定义 -> None（不要写成 NaN，见 src/meta.py 的说明）
+            "mcnemar_p": None if (isinstance(p, float) and p != p) else p,
         }
     return {
         "n_changed": len(items),
         "n_parsed": n_parsed,
         "n_unparsed": len(items) - n_parsed,
+        # ⚠ 敏感度 = |Δ|/(|base|+eps)，当 base≈0 时会爆成极大值，**mean 会被单个离群点带飞**
+        # （0.5B 冒烟里 wording 的 mean=2983 而 median=0.0）。论文请报 median 与 p90。
         "mean_sensitivity": float(a.mean()) if n_parsed else None,
         "median_sensitivity": float(np.median(a)) if n_parsed else None,
+        "p90_sensitivity": float(np.percentile(a, 90)) if n_parsed else None,
         "unchanged_share": unchanged,
         "response_rate": (1.0 - unchanged) if n_parsed else None,
         "accuracy_paired": acc_pair,
@@ -545,28 +550,39 @@ def _run_with_model(model, rows, variants, gen, mode, seed, save, meta_extra=Non
         print(f"  n changed            : {rep['n_changed']} / {len(rows)}"
               f"  (覆盖率 {rep['n_changed'] / max(len(rows), 1):.1%})")
         print(f"  n parsed / unparsed   : {rep['n_parsed']} / {rep['n_unparsed']}")
-        print(f"  mean sensitivity      : {rep['mean_sensitivity']:.4f}"
-              if rep["mean_sensitivity"] is not None else "  mean sensitivity      : n/a")
         print(f"  median sensitivity    : {rep['median_sensitivity']:.4f}"
               if rep["median_sensitivity"] is not None else "  median sensitivity    : n/a")
+        print(f"  p90 sensitivity       : {rep['p90_sensitivity']:.4f}"
+              if rep["p90_sensitivity"] is not None else "  p90 sensitivity       : n/a")
+        print(f"  mean sensitivity      : {rep['mean_sensitivity']:.4f}"
+              "   <- 会被 base≈0 的离群点带飞，论文请以 median/p90 为准"
+              if rep["mean_sensitivity"] is not None else "  mean sensitivity      : n/a")
         print(f"  share unchanged       : {rep['unchanged_share']:.3f}"
               if rep["unchanged_share"] is not None else "  share unchanged       : n/a")
         if rep["accuracy_paired"]:
             ap = rep["accuracy_paired"]
+            p_txt = "n/a（无配对差异）" if ap["mcnemar_p"] is None else f"{ap['mcnemar_p']:.4f}"
             print(f"  配对准确率            : base {ap['base_acc']:.3f} -> "
                   f"{vname} {ap['variant_acc']:.3f} (Δ={ap['delta']:+.3f}, "
-                  f"McNemar p={ap['mcnemar_p']:.4f})")
+                  f"McNemar p={p_txt})")
 
         if save:
             f = RESULTS / f"sensitivity_{vname}_{model.replace('/', '__')}.json"
             write_json(f, {"model": model, "variant": vname, "mode": mode,
                            "n": len(v_rows), **rep, "items": items})
             print(f"[save] {f}")
+            # 每完成一个变体就刷新一次汇总：云上跑两小时时，最后一个变体被 OOM/超时
+            # 打断也不至于把前面两个变体的结果一起丢掉。
+            _save_summary(summary, model)
 
     if save:
-        f = RESULTS / f"sensitivity_summary_{model.replace('/', '__')}.json"
-        write_json(f, summary)
-        print(f"[save] {f}")
+        _save_summary(summary, model)
+
+
+def _save_summary(summary, model):
+    f = RESULTS / f"sensitivity_summary_{model.replace('/', '__')}.json"
+    write_json(f, summary)
+    print(f"[save] {f}")
 
 
 def _load_cfg():
@@ -630,11 +646,13 @@ def main():
     variants = {k: all_variants[k] for k in want}
 
     _run_with_model(model, rows, variants, gen, mode, seed, args.save, meta_extra={
-        "meta": meta_mod.result_meta("run_sensitivity.py", model=model,
-                                     benchmark=benchmark, mode=mode,
-                                     backend=getattr(gen, "backend", args.backend),
-                                     max_new_tokens=max_new_tokens,
-                                     n_problems=len(rows)),
+        "meta": meta_mod.result_meta(
+            "run_sensitivity.py", model=model, benchmark=benchmark, mode=mode,
+            backend=getattr(gen, "backend", args.backend),
+            chat_template=bool(getattr(gen, "chat", None)),
+            max_new_tokens=max_new_tokens, n_problems=len(rows),
+            prompt_fingerprint=meta_mod.fingerprint(
+                prompts_mod.build_prompt(rows[0]["question"], mode=mode)) if rows else None),
         "benchmark": benchmark,
         "max_new_tokens": max_new_tokens,
         "data_composition": data_mod.composition(rows),

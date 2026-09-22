@@ -1,0 +1,76 @@
+{
+  "benchmark": "scibench",
+  "max_problems": null,
+  "seed": 42,
+  "deps": {
+    "versions": {
+      "yaml": "6.0.3",
+      "sympy": "1.14.0",
+      "numpy": "2.4.4",
+      "scipy": "1.17.1",
+      "torch": "2.11.0+cpu",
+      "transformers": "5.5.3",
+      "vllm": null,
+      "pytest": "9.1.1"
+    },
+    "missing_required": []
+  },
+  "data": {
+    "n": 323,
+    "composition": {
+      "general": 71,
+      "thermodynamics": 66,
+      "mechanics": 56,
+      "math": 50,
+      "optics": 47,
+      "quantum": 33
+    },
+    "n_unscorable_ref": 0,
+    "scorable_ratio": 1.0
+  },
+  "grading_self_test": {
+    "n_cases": 23,
+    "n_fail": 0
+  },
+  "judge_self_consistency": {
+    "n": 323,
+    "n_inconsistent": 0,
+    "judge_self_consistency": 1.0
+  },
+  "variant_coverage": {
+    "numeric": {
+      "n_changed": 305,
+      "coverage": 0.9442724458204335
+    },
+    "swap": {
+      "n_changed": 36,
+      "coverage": 0.11145510835913312
+    },
+    "wording": {
+      "n_changed": 240,
+      "coverage": 0.7430340557275542
+    }
+  },
+  "elapsed_s": 47.3,
+  "passed": true,
+  "meta": {
+    "script": "preflight.py",
+    "created_utc": "2026-09-22T05:10:58Z",
+    "git_commit": "37265c0+dirty",
+    "env": {
+      "python": "3.14.4",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "cpu_count": 16,
+      "torch": "2.11.0+cpu",
+      "cuda_available": false,
+      "transformers": "5.5.3",
+      "vllm": null
+    },
+    "argv": [
+      "--benchmark",
+      "scibench"
+    ],
+    "benchmark": "scibench",
+    "seed": 42
+  }
+}

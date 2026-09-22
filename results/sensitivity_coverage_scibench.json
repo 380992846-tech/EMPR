@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "script": "run_sensitivity.py --coverage",
+    "created_utc": "2026-09-22T03:47:00Z",
+    "git_commit": "6944aa8+dirty",
+    "env": {
+      "python": "3.14.4",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "cpu_count": 16,
+      "torch": "2.11.0+cpu",
+      "cuda_available": false,
+      "transformers": "5.5.3",
+      "vllm": null
+    },
+    "argv": [
+      "--coverage",
+      "--benchmark",
+      "scibench",
+      "--max-problems",
+      "323",
+      "--save"
+    ],
+    "benchmark": "scibench",
+    "seed": 42,
+    "n_problems": 323
+  },
+  "benchmark": "scibench",
+  "n_problems": 323,
+  "seed": 42,
+  "coverage": {
+    "numeric": {
+      "n_changed": 305,
+      "coverage": 0.9443
+    },
+    "swap": {
+      "n_changed": 36,
+      "coverage": 0.1115
+    },
+    "wording": {
+      "n_changed": 240,
+      "coverage": 0.743
+    }
+  }
+}

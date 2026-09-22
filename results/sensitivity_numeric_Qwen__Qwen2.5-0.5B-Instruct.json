@@ -1,0 +1,80 @@
+{
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "variant": "numeric",
+  "mode": "direct",
+  "n": 7,
+  "n_changed": 7,
+  "n_parsed": 7,
+  "n_unparsed": 0,
+  "mean_sensitivity": 9.874291702618283,
+  "median_sensitivity": 2.199999560000088,
+  "unchanged_share": 0.14285714285714285,
+  "response_rate": 0.8571428571428572,
+  "accuracy_paired": null,
+  "items": [
+    {
+      "id": "scibench-class-0-numeric",
+      "base_id": "scibench-class-0",
+      "domain": "mechanics",
+      "question_variant": "An automobile with a mass of $2000 \\mathrm{~kg}$, including passengers, settles $1.0 \\mathrm{~cm}$ closer to the road for every additional $100 \\mathrm{~kg}$ of passengers. It is driven with a constant horizontal component of speed $20 \\mathrm{~km} / \\mathrm{h}$ over a washboard road with sinusoidal bumps. The amplitude and wavelength of the sine curve are $5.0 \\mathrm{~cm}$ and $40 \\mathrm{~cm}$, respectively. The distance between the front and back wheels is $2.4 \\mathrm{~m}$. Find the amplitude of oscillation of the automobile, assuming it moves vertically as an undamped driven harmonic oscillator. Neglect the mass of the wheels and springs and assume that the wheels are always in contact with the road.",
+      "base_pred": 0.8,
+      "variant_pred": 0.8,
+      "sensitivity": 0.0
+    },
+    {
+      "id": "scibench-diff-0-numeric",
+      "base_id": "scibench-diff-0",
+      "domain": "math",
+      "question_variant": "Find the effective annual yield of a bank account that pays interest at a rate of 14%, compounded daily; that is, divide the difference between the final and initial balances by the initial balance.",
+      "base_pred": 0.0153,
+      "variant_pred": 0.002875,
+      "sensitivity": 0.8120384288608588
+    },
+    {
+      "id": "scibench-fund-0-numeric",
+      "base_id": "scibench-fund-0",
+      "domain": "general",
+      "question_variant": "In an orienteering class, you have the goal of moving as far (straight-line distance) from base camp as possible by making three straight-line moves. You may use the following displacements in any order: (a) $\\vec{a}, 4 \\mathrm{~km}$ due east (directly toward the east); (b) $\\vec{b}, 2.0 \\mathrm{~km} 30^{\\circ}$ north of east (at an angle of $30^{\\circ}$ toward the north from due east); (c) $\\vec{c}, 2 \\mathrm{~km}$ due west. Alternatively, you may substitute either $-\\vec{b}$ for $\\vec{b}$ or $-\\vec{c}$ for $\\vec{c}$. What is the greatest distance you can be from base camp at the end of the third displacement? (We are not concerned about the direction.)",
+      "base_pred": 5.0,
+      "variant_pred": 16.0,
+      "sensitivity": 2.199999560000088
+    },
+    {
+      "id": "scibench-matter-0-numeric",
+      "base_id": "scibench-matter-0",
+      "domain": "optics",
+      "question_variant": "Radiation from an X-ray source consists of two components of wavelengths $308.866 \\mathrm{pm}$ and $154.051 \\mathrm{pm}$. Calculate the difference in glancing angles $(2 \\theta)$ of the diffraction lines arising from the two components in a diffraction pattern from planes of separation $155.6 \\mathrm{pm}$.",
+      "base_pred": 1.5625,
+      "variant_pred": 90.0,
+      "sensitivity": 56.59996377602319
+    },
+    {
+      "id": "scibench-quan-0-numeric",
+      "base_id": "scibench-quan-0",
+      "domain": "quantum",
+      "question_variant": "Use the $D_0$ value of $\\mathrm{H}_2(8.956 \\mathrm{eV})$ and the $D_0$ value of $\\mathrm{H}_2^{+}(5.302 \\mathrm{eV})$ to calculate the first ionization energy of $\\mathrm{H}_2$ (that is, the energy needed to remove an electron from $\\mathrm{H}_2$ ).",
+      "base_pred": 3.94,
+      "variant_pred": 14.74,
+      "sensitivity": 2.7411160555543006
+    },
+    {
+      "id": "scibench-thermo-0-numeric",
+      "base_id": "scibench-thermo-0",
+      "domain": "thermodynamics",
+      "question_variant": "Consider the half-cell reaction $\\operatorname{AgCl}(s)+\\mathrm{e}^{-} \\rightarrow$ $\\operatorname{Ag}(s)+\\mathrm{Cl}^{-}(a q)$. If $\\mu^{\\circ}(\\mathrm{AgCl}, s)=-219.42 \\mathrm{~kJ} \\mathrm{~mol}^{-1}$, and if $E^{\\circ}=+0.444 \\mathrm{~V}$ for this half-cell, calculate the standard Gibbs energy of formation of $\\mathrm{Cl}^{-}(a q)$.",
+      "base_pred": 54.36,
+      "variant_pred": 367.85,
+      "sensitivity": 5.76692410288955
+    },
+    {
+      "id": "scibench-diff-1-numeric",
+      "base_id": "scibench-diff-1",
+      "domain": "math",
+      "question_variant": "Consider a tank used in certain hydrodynamic experiments. After one experiment the tank contains $400 \\mathrm{~L}$ of a dye solution with a concentration of $1 \\mathrm{~g} / \\mathrm{L}$. To prepare for the next experiment, the tank is to be rinsed with fresh water flowing in at a rate of $2 \\mathrm{~L} / \\mathrm{min}$, the well-stirred solution flowing out at the same rate. Find the time that will elapse before the concentration of dye in the tank reaches $2 \\%$ of its original value.",
+      "base_pred": 200.0,
+      "variant_pred": 400.0,
+      "sensitivity": 0.999999995
+    }
+  ],
+  "p90_sensitivity": 26.100139972143026
+}

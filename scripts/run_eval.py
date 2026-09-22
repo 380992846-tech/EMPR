@@ -262,14 +262,14 @@ def main():
             rep["wall_time_s"] = round(dt, 1)
             rep["max_new_tokens"] = max_new_tokens
             rep["data_composition"] = data_mod.composition(rows)
-            rep["prompt_fingerprint"] = meta_mod.fingerprint(
-                prompts_mod.build_prompt(rows[0]["question"], mode=mode))
+            fp = meta_mod.fingerprint(prompts_mod.build_prompt(rows[0]["question"], mode=mode))
+            rep["prompt_fingerprint"] = fp
             rep["meta"] = meta_mod.result_meta(
                 "run_eval.py", model=m, benchmark=benchmark, mode=mode,
                 backend=info.get("backend"), device=info.get("device"),
                 chat_template=info.get("chat_template"),
                 n_problems=len(rows), max_new_tokens=max_new_tokens,
-                self_check=args.self_check)
+                prompt_fingerprint=fp, self_check=args.self_check)
             if args.save:
                 fname = f"eval_{benchmark}_{mode}_{m.replace('/', '__')}.json"
                 meta_mod.write_json(RESULTS / fname, rep)

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import platform
 import subprocess
@@ -73,9 +74,26 @@ def result_meta(script: str, **extra) -> dict:
     return meta
 
 
+def _sanitize(obj):
+    """把非有限浮点（NaN/±inf）换成 None。
+
+    统计量在退化情形下会产生 NaN（例如 McNemar 两组完全一致、没有配对差异），
+    而 ``json.dumps`` 默认会把它写成裸 ``NaN`` —— 那不是合法 JSON（RFC 8259），
+    R / jq / 严格解析器都会读失败。结果文件必须能被任何工具读。
+    """
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize(v) for v in obj]
+    return obj
+
+
 def write_json(path, obj) -> Path:
-    """统一的落盘方式（utf-8 + 缩进 + 中文不转义）。"""
+    """统一的落盘方式（utf-8 + 缩进 + 中文不转义 + 非有限值转 null）。"""
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+    text = json.dumps(_sanitize(obj), ensure_ascii=False, indent=2, allow_nan=False)
+    p.write_text(text, encoding="utf-8")
     return p
