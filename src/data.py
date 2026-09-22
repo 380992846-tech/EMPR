@@ -196,30 +196,54 @@ def _join_solution(x):
 
 
 # ---------------------------------------------------------------- MMLU
-def load_mmlu_physics(max_n=None):
-    if not _HAS_HF:
-        return _load_local_dir("mmlu_physics", ("*",), max_n)
-    try:
-        ds = load_dataset("cais/mmlu", "physics", split="test")
-        rows = list(ds)
+# cais/mmlu 里**没有** "physics" 这个 config（早期代码写的 "physics" 必然抛
+# BuilderConfig not found，于是 MMLU 这条 sanity check 一直是死的）。物理相关的三个 config：
+MMLU_PHYSICS_CONFIGS = ["high_school_physics", "college_physics", "conceptual_physics"]
+
+
+def _norm_mmlu(ds, cfg):
+    out = []
+    for i, r in enumerate(ds):
+        choices = r.get("choices") or []
+        letters = ["A", "B", "C", "D", "E"][: len(choices)]
+        opts = "".join(f"\n{letters[j]}. {choices[j]}" for j in range(len(choices)))
+        # MMLU 的 answer 是选项下标(0-4)，转成字母以便与 MCQ 判定/模型输出对齐
+        ans_idx = int(r["answer"]) if str(r.get("answer", "")).isdigit() else -1
+        ans = letters[ans_idx] if 0 <= ans_idx < len(letters) else str(r.get("answer", ""))
+        out.append({
+            "id": f"mmlu-{cfg}-{i}",
+            "question": f"{r.get('question', '')}{opts}",
+            "answer": ans,
+            "solution": "",
+            "domain": "mcq",
+            "subset": cfg,
+        })
+    return out
+
+
+def load_mmlu_physics(max_n=None, configs=None):
+    """加载 MMLU 物理相关三个 config（作为 MCQ sanity check）。
+
+    加载顺序：HF(cais/mmlu, test 优先 validation) -> 本地 data/mmlu_physics/。
+    """
+    configs = configs or MMLU_PHYSICS_CONFIGS
+    if _HAS_HF:
         out = []
-        for i, r in enumerate(rows):
-            letters = ["A", "B", "C", "D", "E"][: len(r["choices"])]
-            opts = "".join(f"\n{letters[j]}. {r['choices'][j]}" for j in range(len(r["choices"])))
-            # MMLU 的 answer 是选项下标(0-4)，转成字母以便与 MCQ 判定/模型输出对齐
-            ans_idx = int(r["answer"]) if str(r["answer"]).isdigit() else -1
-            ans = letters[ans_idx] if 0 <= ans_idx < len(letters) else str(r["answer"])
-            out.append({
-                "id": f"mmlu-physics-{i}",
-                "question": f"{r['question']}{opts}",
-                "answer": ans,
-                "solution": "",
-                "domain": "mcq",
-                "subset": "mmlu_physics",
-            })
-        return out[:max_n] if max_n else out
-    except Exception as e:
-        print(f"[data] HF MMLU 加载失败: {e}")
+        for cfg in configs:
+            for split in ("test", "validation"):
+                try:
+                    ds = load_dataset("cais/mmlu", cfg, split=split)
+                except Exception as e:
+                    print(f"[data] HF MMLU '{cfg}'/{split} 加载失败: {type(e).__name__}")
+                    continue
+                batch = _norm_mmlu(ds, cfg)
+                print(f"[data] mmlu: {cfg}/{split} 载入 {len(batch)} 题")
+                out.extend(batch)
+                break
+            if max_n and len(out) >= max_n:
+                break
+        if out:
+            return out[:max_n] if max_n else out
     return _load_local_dir("mmlu_physics", ("*",), max_n)
 
 
