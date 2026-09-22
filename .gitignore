@@ -10,8 +10,8 @@ venv/
 # data 整个目录不进库（可由 download_data.py 重新生成）
 data/
 !data/.gitkeep
-results/*.json
-!results/.gitkeep
+# results/*.json 进库：论文数字的唯一来源，必须能随代码一起被审计
+# （大小可控：单模型 323 题约 0.5MB。只有日志和中间大文件不进库。）
 models/
 
 # 模型权重/检查点（避免误提交大文件）

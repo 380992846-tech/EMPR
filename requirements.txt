@@ -1,24 +1,32 @@
-# Core
+# EMPR 依赖
+#
+# 云 GPU 上推荐：先按 CUDA 版本装 torch，再装其余依赖。
+
+# ---- 必需（评估 / 统计 / 判分 / 测试）
 numpy>=1.24
 scipy>=1.10
-sympy>=1.11
-pyyaml>=6.0
+sympy>=1.11            # 判分：分数/根号/pi 等表达式求值（缺了会退化，不报错）
+pyyaml>=6.0            # config.yaml
+pytest>=7.4            # 单元测试：python -m pytest tests -q
+
+# ---- 数据下载（仅 OlympiadBench 需要；SciBench 走 urllib，无需本包）
 datasets>=2.14
 
-# Inference
-# torch 是 transformers/vllm 的底层依赖，必须显式安装；云上请按 CUDA 版本选择对应 wheel
+# ---- 推理
+# torch 是 transformers/vllm 的底层依赖，必须显式安装；云上按 CUDA 版本选 wheel
 torch>=2.0
-transformers>=4.40,<4.46
-accelerate>=0.29
-# vllm 加速（云上强烈建议；装不上就退回 transformers）
-# 注意：vllm 对 torch/transformers 版本有强绑定，装不上/冲突时用 --backend transformers
+# transformers：4.40+ 与 5.x 都能跑——代码按主版本号自动选 dtype/torch_dtype
+# （v4 是 torch_dtype，v5 改名 dtype），所以不锁上界。
+transformers>=4.40
+accelerate>=0.29       # device_map="auto"（transformers 后端）需要；纯 CPU 可省
+# vllm 加速（云上强烈建议；装不上就退回 --backend transformers）
+# 注意：vllm 对 torch/transformers 版本有强绑定，冲突时用 --backend transformers
 vllm>=0.4
 
-# Plotting (run_causal_tracing --plot / run_sensitivity 绘图)
+# ---- 绘图（run_causal_tracing --plot）
 matplotlib>=3.7
 
-# Optional: 用 ollama 跑本地小模型（不强制）
+# ---- 可选：用 ollama 跑本地小模型
 # ollama
-
-# Grading auxiliary
-# evaluate (LLM-judge 可选)
+# ---- 可选：LLM-judge（默认不用，避免循环论证）
+# evaluate

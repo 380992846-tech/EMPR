@@ -33,6 +33,11 @@ benchmarks:
     subsets: ["physics"]
 
 models:
+  # 本地 CPU 冒烟池：**不是论文模型**，只用来确认"提示词→生成→判定→表格"链路是通的。
+  #   python scripts/run_eval.py --models smoke --mode direct --max-problems 12 \
+  #       --backend transformers --device cpu --save
+  smoke:
+    - "Qwen/Qwen2.5-0.5B-Instruct"
   # 核心默认池（默认单模型跑 defaults.model；--models core 跑这批；4090 友好）
   core:
     - "Qwen/Qwen2.5-7B-Instruct"
@@ -45,5 +50,5 @@ models:
     - "meta-llama/Llama-3.1-70B-Instruct"        # 需 A100-80G 或多卡
     - "Qwen/Qwen2.5-72B-Instruct"                # 需 A100-80G 或多卡
 
-# 兼容旧用法：run_eval.py --models-all 会展开 core+large 的并集。
-# 提示词请改 src/prompts.py。
+# 兼容旧用法：run_eval.py --models-all 会展开 core+large 的并集（不含 smoke）。
+# 提示词请改 src/prompts.py；子域映射请改 src/data.py 的 SCIBENCH_SUBJECT_DOMAIN。

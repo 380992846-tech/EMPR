@@ -55,17 +55,25 @@ def _acc_matrix(data_list, group_key, ci=0.95, seed=42, n_iter=10000):
 
     组名加 benchmark 前缀，避免多基准在 results/ 混放时同名 domain（如 mechanics）
     被错误合并进同一列。
+    **只统计 scorable 样本**：参考答案本身解析不了的题不是"模型答错"，算进分母会
+    系统性压低所有模型的正确率（run_eval 已按同样口径汇总）。
     """
     rows = {}
     meta = {}
+    skipped = 0
     for d in data_list:
         m = d["model"]
         bm = d.get("benchmark", "?")
         for r in d["detail"]:
+            if r.get("scorable") is False:
+                skipped += 1
+                continue
             g = r.get(group_key) or "unknown"
             key = f"{bm}/{g}"  # 带基准前缀，避免跨基准混表
             rows.setdefault(m, {}).setdefault(key, []).append(1.0 if r["correct"] else 0.0)
             meta[(m, key)] = (bm, d.get("mode"))
+    if skipped:
+        print(f"[note] 有 {skipped} 条样本参考答案不可解析，已剔除出分母（不是模型答错）")
     models = sorted(rows.keys())
     groups = sorted({g for mm in rows.values() for g in mm})
     matrix = {}
@@ -144,6 +152,18 @@ def main():
 
     print(f"加载 {len(data_list)} 个评估结果:",
           ", ".join(f"{d['model'].split('/')[-1]}({d.get('mode')})" for d in data_list))
+
+    # 同一个模型出现多个 (benchmark, mode) 组合时会被并成同一行——等于把 cot 与 direct
+    # 混进一格。这不是错，但必须让作者看见，否则很容易把混合数字写进论文。
+    combos = {}
+    for d in data_list:
+        combos.setdefault(d["model"], set()).add((d.get("benchmark"), d.get("mode")))
+    mixed = {m: c for m, c in combos.items() if len(c) > 1}
+    if mixed:
+        print("[warn] 以下模型有多份不同条件的评估会被合并到同一行：")
+        for m, c in sorted(mixed.items()):
+            print(f"  {m} <- {sorted(c)}")
+        print("       要分开出表：加 --mode cot / --mode direct（必要时加 --benchmark）")
 
     # 用与 run_eval 一致的 n_iter 重算 CI（跨 benchmark 分列后 group 已有前缀）
     models, groups, matrix, meta = _acc_matrix(data_list, args.group, ci=0.95, seed=seed, n_iter=n_iter)

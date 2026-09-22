@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 try:
@@ -35,10 +36,36 @@ HF_CANDIDATES = {
 }
 
 
+# ---------------------------------------------------------------- 子域映射（唯一真源）
+# SciBench 科目 -> 物理子域。**这里是唯一的真源**：src/data.py 的加载路径与
+# scripts/download_data.py 的落盘路径都从这里取，避免"落盘写 general、加载时又
+# 想标成 quantum"这类两处不一致（早期版本正是如此，导致 154/323 题被并进 general）。
+SCIBENCH_SUBJECT_DOMAIN = {
+    "class": "mechanics",        # 经典力学
+    "classical": "mechanics",    # 兼容 "Classical Mechanics" 写法
+    "mechanics": "mechanics",
+    "matter": "optics",          # 波动与近代物理（X 射线衍射、光电效应、能级）
+    "thermo": "thermodynamics",  # 热力学/统计物理
+    "thermodynamics": "thermodynamics",
+    "quan": "quantum",           # 量子化学/量子力学
+    "quantum": "quantum",
+    "diff": "math",              # 微分方程、级数等数学工具题
+    "fund": "general",           # 综合基础题（跨子域混合）
+    "stat": "statistics",
+    "atkins": "chemistry",
+    "chemmc": "chemistry",
+    "calculus": "math",
+}
+
+
 # ---------------------------------------------------------------- 归一化工具
 def _norm(rows, name, subset, question_keys, answer_keys, solution_keys,
-          domain_keys=(), extra_filter=None):
-    """从任意行的 dict 里按候选键抽字段。"""
+          domain_keys=(), extra_filter=None, domain_from_subset=False):
+    """从任意行的 dict 里按候选键抽字段。
+
+    domain_from_subset=True 时忽略行内自带的 domain 字段，改用文件名/子集名推导子域
+    （SciBench 本地 jsonl 的 domain 字段是早期版本写下的，已在部分科目上过时）。
+    """
     out = []
     for i, r in enumerate(rows):
         if not isinstance(r, dict):
@@ -50,13 +77,13 @@ def _norm(rows, name, subset, question_keys, answer_keys, solution_keys,
             continue
         ans = _first(r, answer_keys)
         sol = _first(r, solution_keys)
-        dom = _first(r, domain_keys) or subset
+        dom = _domain_of(subset if domain_from_subset else (_first(r, domain_keys) or subset))
         out.append({
             "id": f"{name}-{subset}-{i}",
             "question": str(q),
             "answer": str(ans or ""),
             "solution": str(sol or ""),
-            "domain": _domain_of(dom),
+            "domain": dom,
             "subset": subset,
         })
     return out
@@ -75,11 +102,37 @@ def _is_physics(r, keys=("subject", "subset", "domain", "field", "category")):
 
 
 # ---------------------------------------------------------------- SciBench
+def _prefer_hf() -> bool:
+    """EMPR_PREFER_HF=1 时强制走 HF（默认本地优先，见 load_scibench）。"""
+    return os.environ.get("EMPR_PREFER_HF", "").strip().lower() not in ("", "0", "false", "no")
+
+
+def _has_local(name: str) -> bool:
+    d = DATA_DIR / name
+    return d.exists() and any(d.glob("*.json*"))
+
+
 def load_scibench(subsets=("phys",), max_n=None):
+    """加载 SciBench。
+
+    **本地优先**：`data/scibench/*.jsonl`（download_data.py 落盘）存在时直接用它，
+    不再先试 HF。理由：HF 镜像的名字/字段/切分随时会变，同一份代码在不同机器上
+    可能悄悄加载到不同数据集（实测镜像 lmms-lab-encoder/SciBench_Math 与
+    xw27/scibench 会抛 ValueError，而一旦某个镜像哪天可用，题目数、子域分布、
+    答案格式都会变，结果不可比）。要强制走 HF：设 EMPR_PREFER_HF=1。
+    """
+    if _has_local("scibench") and not _prefer_hf():
+        rows = _load_local_dir("scibench", ("*",), max_n)
+        if rows:
+            print(f"[data] scibench: 用本地 data/scibench/ 共 {len(rows)} 题"
+                  f"（本地优先保证可复现；强制 HF 请设 EMPR_PREFER_HF=1）")
+            return rows
+        print("[data] 本地 data/scibench/ 为空，改试 HF")
     if _HAS_HF:
         for ds_name in HF_CANDIDATES["scibench"]:
             try:
                 ds = load_dataset(ds_name, split="test")
+                print(f"[data] scibench: 用 HF 数据集 '{ds_name}'")
                 return _norm_scibench_hf(ds, subsets, max_n)
             except Exception as e:
                 print(f"[data] HF '{ds_name}' 加载失败: {type(e).__name__}")
@@ -172,7 +225,12 @@ def load_mmlu_physics(max_n=None):
 
 # ---------------------------------------------------------------- 本地目录/文件回退
 def _load_local_dir(name, subsets, max_n):
-    """扫描 data/<name>/ 下所有 .json/.jsonl，防御式提取。"""
+    """扫描 data/<name>/ 下所有 .json/.jsonl，防御式提取。
+
+    `domain_from_subset=True`（SciBench）：子域由文件名（科目）推导，而不是用行内
+    自带的 domain 字段——早期 download_data.py 把 quan/diff 都写成了 "general"，
+    直接用行内字段会让 154/323 题挤进同一个桶，子域表失去意义。
+    """
     d = DATA_DIR / name
     if not d.exists():
         return _load_local_jsonl(name, subsets, max_n)
@@ -190,7 +248,8 @@ def _load_local_dir(name, subsets, max_n):
                           answer_keys=["answer", "final_answer", "result", "output"],
                           solution_keys=["solution", "sol", "reasoning", "steps", "full_solution"],
                           domain_keys=["subject", "domain", "category", "field"],
-                          extra_filter=(None if subsets == ("*",) else _is_physics))
+                          extra_filter=(None if subsets == ("*",) else _is_physics),
+                          domain_from_subset=(name == "scibench"))
             out.extend(batch)
             if max_n and len(out) >= max_n:
                 return out[:max_n]
@@ -240,45 +299,88 @@ def _flatten_json(data):
 
 
 def _domain_of(s):
-    s = str(s).lower()
-    # SciBench 科目名（显式优先，避免量子/数学被混入 "general"）
-    if s in ("class", "classical") or "mech" in s:
+    s = str(s).strip()
+    low = s.lower()
+    # 0) "physics.class" / "physics/class" 这类带前缀的写法，取最后一段
+    if any(sep in low for sep in (".", "/", ":")):
+        tail = re.split(r"[./:]", low)[-1].strip()
+        if tail and tail != low:
+            mapped = _domain_of(tail)
+            if mapped and mapped != tail:
+                return mapped
+    # 1) 显式科目名（唯一真源，避免 quan/diff 被并进 general）
+    if low in SCIBENCH_SUBJECT_DOMAIN:
+        return SCIBENCH_SUBJECT_DOMAIN[low]
+    # 2) 兼容旧写法（"Classical"、"_sol" 之类）
+    for key, dom in SCIBENCH_SUBJECT_DOMAIN.items():
+        if low == key or low.startswith(key + "_"):
+            return dom
+    # 3) 通用关键词
+    if any(k in low for k in ("mech", "dynam", "kinemat", "force")):
         return "mechanics"
-    if s in ("thermo",) or "therm" in s:
+    if any(k in low for k in ("therm", "heat")):
         return "thermodynamics"
-    if s in ("matter",) or "wave" in s or "optic" in s:
-        return "optics"
-    if s in ("quan", "quantum") or "quant" in s:
-        return "quantum"
-    if s in ("calculus", "diff") or "calculus" in s or "diff" in s:
-        return "math"
-    if s in ("fund", "stat", "atkins", "chemmc", "general"):
-        return "general"
-    # 通用关键词
-    if any(k in s for k in ("mech", "dynam", "kinemat", "force")):
-        return "mechanics"
-    if any(k in s for k in ("therm", "heat")):
-        return "thermodynamics"
-    if any(k in s for k in ("electromagnet", "elec", "magnet")):
+    if any(k in low for k in ("electromagnet", "elec", "magnet")):
         return "electromagnetism"
-    if any(k in s for k in ("optic", "light", "wave")):
+    if any(k in low for k in ("optic", "light", "wave")):
         return "optics"
-    if any(k in s for k in ("quant", "quantum")):
+    if any(k in low for k in ("quant", "quantum")):
         return "quantum"
-    return s or "unknown"
+    if any(k in low for k in ("calculus", "algebra", "equation")):
+        return "math"
+    return low or "unknown"
+
+
+def composition(rows):
+    """返回 `{domain: n}`（按题数降序），用于打印/记录数据构成。"""
+    counts = {}
+    for r in rows:
+        counts[r.get("domain", "unknown")] = counts.get(r.get("domain", "unknown"), 0) + 1
+    return dict(sorted(counts.items(), key=lambda kv: -kv[1]))
+
+
+def format_composition(rows):
+    """一行式数据构成，便于写进日志/结果 json（复现时不用再猜题数分布）。"""
+    comp = composition(rows)
+    total = len(rows) or 1
+    return " | ".join(f"{d}={n}({n / total:.0%})" for d, n in comp.items())
 
 
 # ---------------------------------------------------------------- 统一入口
-def load_benchmark(name, subsets=None, max_problems=None):
+def stratified_take(rows, max_n, key="subset"):
+    """按 subset 轮转取前 max_n 题（跨科目均衡），保持各科目内部原有顺序。
+
+    为什么需要它：``rows[:max_n]`` 取到的是文件排序里的前几个科目——
+    SciBench 按字母序扫描文件，``--max-problems 40`` 会拿到清一色的 mechanics
+    题，然后在论文里写成"模型在 SciBench 上 40 题"（子域表直接失真）。
+    轮转采样是确定性的（不用随机数），所以不影响可复现性。
+    """
+    if not max_n or max_n >= len(rows):
+        return list(rows)
+    buckets = {}
+    for r in rows:
+        buckets.setdefault(r.get(key) or "unknown", []).append(r)
+    order = sorted(buckets)                      # 确定性顺序
+    picked, i = [], 0
+    while len(picked) < max_n and any(buckets[k] for k in order):
+        k = order[i % len(order)]
+        if buckets[k]:
+            picked.append(buckets[k].pop(0))
+        i += 1
+    return picked[:max_n]
+
+
+def load_benchmark(name, subsets=None, max_problems=None, stratified=True, key="subset"):
+    """统一入口。stratified=True 时按科目轮转抽样（默认开，见 stratified_take）。"""
     name = name.lower()
     if name == "scibench":
-        rows = load_scibench(subsets or ("phys",), max_problems)
+        rows = load_scibench(subsets or ("phys",), None)
     elif name == "olympiadbench":
-        rows = load_olympiadbench(subsets or ("physics",), max_problems)
+        rows = load_olympiadbench(subsets or ("physics",), None)
     elif name == "mmlu_physics":
-        rows = load_mmlu_physics(max_problems)
+        rows = load_mmlu_physics(None)
     else:
         raise ValueError(f"未知基准: {name}")
     if max_problems:
-        rows = rows[:max_problems]
+        rows = stratified_take(rows, max_problems, key=key) if stratified else rows[:max_problems]
     return rows

@@ -23,18 +23,22 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from src.data import SCIBENCH_SUBJECT_DOMAIN, _domain_of  # 子域映射的唯一真源
+
 DATA = ROOT / "data"
 
 SCIBENCH_BRANCH = "main"
 SCIBENCH_RAW = f"https://raw.githubusercontent.com/mandyyyyii/scibench/{SCIBENCH_BRANCH}/dataset/original"
 
-# SciBench subject -> (显示名, 域)
-SCIBENCH_PHYSICS = {
-    "matter": "optics", "class": "mechanics", "fund": "general",
-    "diff": "general", "quan": "general", "thermo": "thermodynamics",
-}
-SCIBENCH_OTHER = {"atkins": "chemistry", "chemmc": "chemistry",
-                  "stat": "statistics", "calculus": "math"}
+# SciBench 科目 -> 显示域。**不要在这里另写一套映射**：早期版本把 quan/diff 都写成
+# "general"，落盘后再加载时子域字段就固定成 general，154/323 题挤进同一个桶，
+# 于是"模型 × 子域"主表直接失真。现在统一从 src.data 取。
+SCIBENCH_PHYSICS = {s: _domain_of(s) for s in
+                    ("matter", "class", "fund", "diff", "quan", "thermo")}
+SCIBENCH_OTHER = {s: SCIBENCH_SUBJECT_DOMAIN[s] for s in
+                  ("atkins", "chemmc", "stat", "calculus")}
 
 # OlympiadBench 物理配置（HF: Hothan/OlympiadBench）
 OLYMPIAD_PHYSICS = {

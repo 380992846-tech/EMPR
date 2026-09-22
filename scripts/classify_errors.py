@@ -58,11 +58,27 @@ _JUDGE_PROMPT = (
 
 # ---------------------------------------------------------------- 加载
 def _load_eval(file_or_path):
+    """读评估结果，返回 (data, 需要标注的错误样本)。
+
+    剔除两类不是"模型物理错误"的样本：
+      * ``scorable=False``：参考答案本身解析不了，判定无效；
+      * ``status='unparsed_pred'``：模型压根没给出可解析的答案，单独统计（NP），
+        把它塞进 E1/E2/E3 只会污染错误类型分布。
+    """
     path = Path(file_or_path)
     if not path.exists():
         path = RESULTS / file_or_path
     data = json.loads(path.read_text(encoding="utf-8"))
-    wrong = [d for d in data["detail"] if not d.get("correct")]
+    detail = data["detail"]
+    n_unscorable = sum(1 for d in detail if d.get("scorable") is False)
+    n_unparsed = sum(1 for d in detail if d.get("status") == "unparsed_pred")
+    wrong = [d for d in detail
+             if d.get("scorable", True) and not d.get("correct")
+             and d.get("status") != "unparsed_pred"]
+    if n_unscorable or n_unparsed:
+        print(f"[filter] 剔除 {n_unscorable} 条参考答案不可解析 + "
+              f"{n_unparsed} 条模型无答案（NP），剩 {len(wrong)} 条可分类错误样本")
+    data["_n_excluded"] = {"unscorable_ref": n_unscorable, "unparsed_pred": n_unparsed}
     return data, wrong
 
 

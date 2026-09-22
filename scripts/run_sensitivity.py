@@ -26,7 +26,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import random
 import re
 import sys
@@ -38,8 +37,10 @@ import yaml
 
 from src import data as data_mod
 from src import llm as llm_mod
+from src import meta as meta_mod
 from src import prompts as prompts_mod
-from src.grading import parse_number, extract_number
+from src.grading import parse_number, extract_number, judge
+from src.meta import write_json
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"
@@ -51,9 +52,14 @@ RESULTS = ROOT / "results"
 def _scan_numbers(text: str):
     """返回可扰动的数值列表 `(start, end, num_str)`。
 
-    排除：`^{...}`/`_{...}` 组、裸 `^n`/`_n` 指数、紧贴字母/数字/点的数字
-    （如 `x2`、`m/s^2` 的指数 2、化学下标）。保留科学计数法（1.0 \\times 10^{3}）里的
-    尾数 `1.0`（它是物理量），只把指数 `3` 屏蔽掉。
+    排除：
+      * `^{...}` / `_{...}` 组、裸 `^n` / `_n`（指数不是物理量）；
+      * **幂的底数**：紧挨在 `^` 前面的数（`10^{3}` 的 10）——把 10 乘 2 会得到
+        `20^{3}`=8000，物理上并不等于原来数值的 2 倍，属于"改坏了"而不是"改数值"；
+      * 紧贴字母/数字/点的数字（`x2`、`m/s^2` 的指数 2、化学下标）；
+      * 撇号年份（`'88`）。
+    保留科学计数法的尾数：`1.0 \\times 10^{3}` 里 `1.0` 可扰动（乘 2 得到 `2.0 x 10^3`，
+    物理上正确），而 `10` 作为底数被保护。
     """
     n = len(text)
     excluded = [False] * n
@@ -62,6 +68,17 @@ def _scan_numbers(text: str):
         for k in range(a, min(b, n)):
             if k >= 0:
                 excluded[k] = True
+
+    def mark_base_of_power(caret_idx):
+        """把 `^` 前面的数字底数标记为不可扰动的。"""
+        k = caret_idx - 1
+        while k >= 0 and text[k] in " \t":
+            k -= 1
+        end = k + 1
+        while k >= 0 and (text[k].isdigit() or text[k] == "."):
+            k -= 1
+        if end > k + 1:                       # 确实是一串数字
+            mark(k + 1, end)
 
     i = 0
     while i < n:
@@ -83,6 +100,7 @@ def _scan_numbers(text: str):
                             break
                     k += 1
                 mark(i, min(k + 1, n))
+                mark_base_of_power(i)
                 i = min(k + 1, n)
                 continue
             elif j < n and (text[j].isdigit() or text[j] in "+-"):
@@ -91,6 +109,7 @@ def _scan_numbers(text: str):
                 while k < n and (text[k].isdigit() or text[k] in ".+-"):
                     k += 1
                 mark(i, k)
+                mark_base_of_power(i)
                 i = k
                 continue
         i += 1
@@ -318,6 +337,13 @@ _WORDING_RULES = [
 ]
 
 
+def _match_case(original: str, replacement: str) -> str:
+    """替换时保留原短语的首字母大小写（否则 "What is ..." 会被改成 "what is ..."）。"""
+    if original[:1].isupper():
+        return replacement[:1].upper() + replacement[1:]
+    return replacement
+
+
 def wording_change(question: str, seed: int = 42, max_rules: int = 1):
     """表层措辞改写（物理、数据完全不变）。返回 (新题, changed_bool)。
 
@@ -336,8 +362,13 @@ def wording_change(question: str, seed: int = 42, max_rules: int = 1):
                 break
     for i, ph, alts in rng.sample(hits, min(max_rules, len(hits))):
         rep = rng.choice(alts)
-        newq, cnt = re.subn(re.escape(ph), rep, q, count=1, flags=re.I)
+        newq, cnt = re.subn(re.escape(ph),
+                            lambda m: _match_case(m.group(0), rep),
+                            q, count=1, flags=re.I)
         if cnt and newq != q:
+            # 把疑问句换成祈使句时，句末问号一并改掉（仍属表层改动，不涉及物理）
+            if ph.lower().startswith("what") and not rep.lower().startswith("what"):
+                newq = re.sub(r"\?\s*$", ".", newq)
             q = newq
             changed = True
         if changed:
@@ -367,18 +398,20 @@ def build_variant(rows, vname, seed=42):
 
 
 def report_coverage(rows, seed=42):
-    """干跑：报告每个变体改动了多少题（覆盖率），并打印 2 个样例。"""
+    """干跑：报告每个变体改动了多少题（覆盖率），并打印 2 个样例。返回 {variant: 覆盖率}。"""
     total = len(rows)
     print(f"基准共 {total} 题。三个变体的覆盖率（seed={seed}，数值扰动上限=2、factor=2.0）：\n")
+    out = {}
     for vname in ("numeric", "swap", "wording"):
         v = build_variant(rows, vname, seed=seed)
-        cov = len(v) / total * 100 if total else 0
-        print(f"  {vname:<8} 改动 {len(v):>4}/{total} 题  (覆盖率 {cov:5.1f}%)")
+        cov = len(v) / total if total else 0.0
+        out[vname] = {"n_changed": len(v), "coverage": cov}
+        print(f"  {vname:<8} 改动 {len(v):>4}/{total} 题  (覆盖率 {cov:5.1%})")
         for ex in v[:2]:
             print(f"      Q : {ex['question'][:96].replace(chr(10), ' ')}")
             print(f"      id: {ex['id']}")
         print()
-    return cov
+    return out
 
 
 # ============================================================
@@ -394,101 +427,218 @@ def sensitivity_of_output(base_ans, pert_ans):
     return abs(p - b) / denom
 
 
-def _run_with_model(model, rows, variants, gen, mode, seed, save):
+# 「变体是否改变了模型的答案」的阈值：相对变化小于它就算"没变"
+UNCHANGED_EPS = 1e-6
+
+
+def _variant_report(vname, items, arr, base_flags, var_flags):
+    """汇总一个变体的所有指标（含配对 McNemar）。items 为逐题审计记录。"""
+    import numpy as np
+    a = np.array(arr) if arr else np.array([float("nan")])
+    n_parsed = len(arr)
+    unchanged = float((a < UNCHANGED_EPS).mean()) if n_parsed else float("nan")
+
+    # 配对准确率（只有物理答案不变的变体才可算：wording）
+    acc_pair = None
+    if base_flags and var_flags and len(base_flags) == len(var_flags):
+        base_acc = sum(base_flags) / len(base_flags)
+        var_acc = sum(var_flags) / len(var_flags)
+        from src.stats import paired_significance
+        acc_pair = {
+            "n_paired": len(base_flags),
+            "base_acc": round(base_acc, 4),
+            "variant_acc": round(var_acc, 4),
+            "delta": round(var_acc - base_acc, 4),
+            "mcnemar_p": paired_significance(base_flags, var_flags),
+        }
+    return {
+        "n_changed": len(items),
+        "n_parsed": n_parsed,
+        "n_unparsed": len(items) - n_parsed,
+        "mean_sensitivity": float(a.mean()) if n_parsed else None,
+        "median_sensitivity": float(np.median(a)) if n_parsed else None,
+        "unchanged_share": unchanged,
+        "response_rate": (1.0 - unchanged) if n_parsed else None,
+        "accuracy_paired": acc_pair,
+    }
+
+
+def _run_with_model(model, rows, variants, gen, mode, seed, save, meta_extra=None):
     base_prompts = prompts_mod.build_prompts(rows, mode=mode)
+    print(f"[sens] base 推理 {len(rows)} 题（{mode}）...")
     base_out = gen.gen_batch(base_prompts)
+    if len(base_out) != len(rows):
+        raise RuntimeError(f"base 输出条数({len(base_out)}) != 题数({len(rows)})")
     base_by_id = {r["id"]: o for r, o in zip(rows, base_out)}
 
-    import numpy as np
-    summary = {"model": model, "total_questions": len(rows), "variants": {}}
+    cfg = _load_cfg()
+    tol, atol = cfg["eval"]["answer_tolerance"], cfg["eval"]["abs_tolerance"]
+
+    summary = {"model": model, "mode": mode, "total_questions": len(rows),
+               "seed": seed, "variants": {}}
+    if meta_extra:
+        summary.update(meta_extra)
+
     for vname, fn in variants.items():
-        v_rows = []
+        v_rows, pairs = [], []
         for r in rows:
             q2, _ = fn(r["question"])
             if q2 != r["question"]:
-                v_rows.append(dict(r, question=q2, id=r["id"] + f"-{vname}"))
+                vr = dict(r, question=q2, id=r["id"] + f"-{vname}")
+                v_rows.append(vr)
+                pairs.append(r["id"])
         if not v_rows:
             print(f"[warn] 变体 {vname}: 覆盖率 0，跳过")
             continue
-        v_out = gen.gen_batch(prompts_mod.build_prompts(v_rows, mode=mode))
-        sens, n_unparsed = [], 0
-        for r, po in zip(v_rows, v_out):
-            base_id = r["id"].replace(f"-{vname}", "")
+        print(f"[sens] 变体 {vname}: {len(v_rows)} 题需要推理...")
+        try:
+            v_out = gen.gen_batch(prompts_mod.build_prompts(v_rows, mode=mode))
+        except Exception as e:
+            # 一个变体挂掉不该让另外两个变体的结果一起丢（长跑无人值守时尤其重要：
+            # 云上跑了两小时，回来发现 OOM 把整份汇总都带走了）。记录错误后继续。
+            print(f"[error] 变体 {vname} 推理失败: {type(e).__name__}: {e}")
+            summary["variants"][vname] = {"error": f"{type(e).__name__}: {e}",
+                                          "n_changed": len(v_rows)}
+            continue
+        if len(v_out) != len(v_rows):
+            summary["variants"][vname] = {
+                "error": f"输出条数({len(v_out)}) != 题数({len(v_rows)})",
+                "n_changed": len(v_rows)}
+            print(f"[error] 变体 {vname}: 输出条数({len(v_out)}) != 题数({len(v_rows)})")
+            continue
+
+        sens, items = [], []
+        base_flags, var_flags = [], []
+        n_unparsed = 0
+        for vr, po, base_id in zip(v_rows, v_out, pairs):
             bo = base_by_id.get(base_id, "")
             bval, pval = extract_number(bo), extract_number(po)
+            s = None
             if bval is None or pval is None:
                 n_unparsed += 1
-                continue
-            s = sensitivity_of_output(str(bval), str(pval))
-            if s is not None:
+            else:
+                denom = abs(bval) + 1e-6
+                s = abs(pval - bval) / denom
                 sens.append(s)
-        if not sens:
-            print(f"[warn] 变体 {vname}: 没有可解析样本，跳过")
-            continue
-        arr = np.array(sens)
-        mean_sens = float(arr.mean())
-        unchanged = float((arr < 1e-6).mean())
+            items.append({
+                "id": vr["id"], "base_id": base_id, "domain": vr["domain"],
+                "question_variant": vr["question"],
+                "base_pred": bval, "variant_pred": pval, "sensitivity": s,
+            })
+            # 配对准确率：base 题的参考答案对变体题是否仍然成立
+            #   只有 wording（物理/数据完全没变）成立；numeric/swap 的正确答案
+            #   已经变了，拿原参考答案判分没有意义，这里不算。
+            if vname == "wording":
+                ref = next((x["answer"] for x in rows if x["id"] == base_id), None)
+                if ref is not None:
+                    bc, _ = judge(bo, ref, tol=tol, abs_tol=atol)
+                    vc, _ = judge(po, ref, tol=tol, abs_tol=atol)
+                    base_flags.append(bool(bc))
+                    var_flags.append(bool(vc))
+
+        rep = _variant_report(vname, items, sens,
+                              base_flags if vname == "wording" else None,
+                              var_flags if vname == "wording" else None)
+        summary["variants"][vname] = rep
+
         print(f"\n===== {model} | {vname} variant =====")
-        print(f"  n changed           : {len(v_rows)}")
-        print(f"  n parsed / n unparsed: {len(sens)} / {n_unparsed}")
-        print(f"  mean sensitivity    : {mean_sens:.4f}")
-        print(f"  median sensitivity  : {float(np.median(arr)):.4f}")
-        print(f"  share of unchanged  : {unchanged:.3f}")
-        summary["variants"][vname] = {
-            "n_changed": len(v_rows),
-            "n_parsed": len(sens),
-            "n_unparsed": n_unparsed,
-            "mean_sensitivity": mean_sens,
-            "median_sensitivity": float(np.median(arr)),
-            "unchanged_share": unchanged,
-        }
+        print(f"  n changed            : {rep['n_changed']} / {len(rows)}"
+              f"  (覆盖率 {rep['n_changed'] / max(len(rows), 1):.1%})")
+        print(f"  n parsed / unparsed   : {rep['n_parsed']} / {rep['n_unparsed']}")
+        print(f"  mean sensitivity      : {rep['mean_sensitivity']:.4f}"
+              if rep["mean_sensitivity"] is not None else "  mean sensitivity      : n/a")
+        print(f"  median sensitivity    : {rep['median_sensitivity']:.4f}"
+              if rep["median_sensitivity"] is not None else "  median sensitivity    : n/a")
+        print(f"  share unchanged       : {rep['unchanged_share']:.3f}"
+              if rep["unchanged_share"] is not None else "  share unchanged       : n/a")
+        if rep["accuracy_paired"]:
+            ap = rep["accuracy_paired"]
+            print(f"  配对准确率            : base {ap['base_acc']:.3f} -> "
+                  f"{vname} {ap['variant_acc']:.3f} (Δ={ap['delta']:+.3f}, "
+                  f"McNemar p={ap['mcnemar_p']:.4f})")
+
         if save:
             f = RESULTS / f"sensitivity_{vname}_{model.replace('/', '__')}.json"
-            f.write_text(json.dumps({"model": model, "variant": vname,
-                                     "n": len(v_rows), "n_parsed": len(sens),
-                                     "n_unparsed": n_unparsed,
-                                     "mean_sensitivity": mean_sens,
-                                     "median_sensitivity": float(np.median(arr)),
-                                     "unchanged_share": unchanged},
-                                    ensure_ascii=False, indent=2), encoding="utf-8")
+            write_json(f, {"model": model, "variant": vname, "mode": mode,
+                           "n": len(v_rows), **rep, "items": items})
             print(f"[save] {f}")
+
     if save:
         f = RESULTS / f"sensitivity_summary_{model.replace('/', '__')}.json"
-        f.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+        write_json(f, summary)
         print(f"[save] {f}")
+
+
+def _load_cfg():
+    return yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--model", default=None)
-    p.add_argument("--benchmark", default="scibench")
+    p.add_argument("--benchmark", default=None)
     p.add_argument("--max-problems", type=int, default=40)
-    p.add_argument("--backend", default="auto")
-    p.add_argument("--cot", action="store_true")
+    p.add_argument("--backend", default="auto", choices=["auto", "vllm", "transformers"])
+    p.add_argument("--device", default="auto")
+    p.add_argument("--mode", default=None, choices=["cot", "direct"])
+    p.add_argument("--cot", action="store_true", help="等价 --mode cot")
+    p.add_argument("--max-new-tokens", type=int, default=None)
+    p.add_argument("--batch-size", type=int, default=8)
+    p.add_argument("--variants", default="numeric,wording,swap",
+                   help="逗号分隔，默认三个全跑")
     p.add_argument("--save", action="store_true")
     p.add_argument("--coverage", action="store_true",
                    help="干跑：只测三个变体的覆盖率，不调用模型")
-    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--seed", type=int, default=None)
     args = p.parse_args()
 
-    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    cfg = _load_cfg()
+    eval_cfg = cfg.get("eval", {})
+    seed = args.seed if args.seed is not None else eval_cfg.get("seed", 42)
+    benchmark = args.benchmark or cfg.get("defaults", {}).get("benchmark", "scibench")
+    mode = args.mode or ("cot" if args.cot else cfg.get("defaults", {}).get("mode", "cot"))
+    max_new_tokens = args.max_new_tokens or eval_cfg.get("max_new_tokens", 1024)
 
-    rows = data_mod.load_benchmark(args.benchmark, max_problems=args.max_problems)
+    rows = data_mod.load_benchmark(benchmark, max_problems=args.max_problems)
+    print(f"[data] {benchmark}: {len(rows)} 题 | {data_mod.format_composition(rows)}")
     if args.coverage:
-        report_coverage(rows, seed=args.seed)
+        rep = report_coverage(rows, seed=seed)
+        if args.save:
+            f = RESULTS / f"sensitivity_coverage_{benchmark}.json"
+            write_json(f, {"meta": meta_mod.result_meta(
+                "run_sensitivity.py --coverage", benchmark=benchmark, seed=seed,
+                n_problems=len(rows)), "benchmark": benchmark, "n_problems": len(rows),
+                "seed": seed, "coverage": rep})
+            print(f"[save] {f}")
         return
 
     model = args.model or cfg.get("defaults", {}).get("model") or cfg["models"]["core"][0]
-    gen = llm_mod.make_generator(model, backend=args.backend, seed=cfg["eval"]["seed"])
-    mode = "cot" if args.cot else "direct"
+    gen = llm_mod.make_generator(model, backend=args.backend, seed=seed,
+                                 max_new_tokens=max_new_tokens, device=args.device,
+                                 batch_size=args.batch_size)
 
-    # 传入只接收 question 的包装函数（保持与全量跑一致）
-    variants = {
-        "numeric": lambda q: numeric_perturb(q, seed=args.seed),
-        "wording": lambda q: wording_change(q, seed=args.seed),
-        "swap": lambda q: quantity_swap(q, seed=args.seed),
+    # 传入只接收 question 的包装函数（保持与覆盖率干跑一致）
+    all_variants = {
+        "numeric": lambda q: numeric_perturb(q, seed=seed),
+        "wording": lambda q: wording_change(q, seed=seed),
+        "swap": lambda q: quantity_swap(q, seed=seed),
     }
-    _run_with_model(model, rows, variants, gen, mode, args.seed, args.save)
+    want = [v.strip() for v in args.variants.split(",") if v.strip()]
+    unknown = [v for v in want if v not in all_variants]
+    if unknown:
+        raise SystemExit(f"未知变体 {unknown}，可选 {list(all_variants)}")
+    variants = {k: all_variants[k] for k in want}
+
+    _run_with_model(model, rows, variants, gen, mode, seed, args.save, meta_extra={
+        "meta": meta_mod.result_meta("run_sensitivity.py", model=model,
+                                     benchmark=benchmark, mode=mode,
+                                     backend=getattr(gen, "backend", args.backend),
+                                     max_new_tokens=max_new_tokens,
+                                     n_problems=len(rows)),
+        "benchmark": benchmark,
+        "max_new_tokens": max_new_tokens,
+        "data_composition": data_mod.composition(rows),
+    })
 
 
 if __name__ == "__main__":
