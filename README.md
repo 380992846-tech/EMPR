@@ -116,6 +116,54 @@ layer 0 的高方差（±0.91）来自 embedding 级恢复的不稳定性，不�
 
 ![Causal tracing recovery curve](<results/causal_tracing_Qwen2.5-7B.png>)
 
+### 5. 识别 vs 生成：MMLU 物理对照（Qwen2.5-7B，488 题选择题）
+
+同一个模型、同样属于物理知识，把答案形式从"自由作答数字"换成"四选一"：
+
+| 任务 | 题量 | 作答形式 | 正确率 |
+|---|---|---|---|
+| MMLU 物理（high_school / college / conceptual） | 488 | 选出 A/B/C/D | **0.666** [0.623, 0.707] |
+| SciBench 物理 cot | 323 | 写出最终数值 | 0.211 [0.167, 0.257] |
+| SciBench 物理 direct | 323 | 直接写数值 | 0.087 [0.056, 0.118] |
+
+**发现**：同一模型在选择题上 **66.6%**，在需要自行产出数值时只有 **21.1%**，相差 3.2 倍。
+这排除了"模型缺乏物理知识"这一解释 —— 知识在，**从候选项里认出正确答案可以，独立把数算出来不行**。
+这是本项目"pattern matching 而非物理求解"定位最直接的一组对照证据。
+（MMLU 488 题全部可判分、模型输出全部可解析，`unparsed = 0`。）
+
+### 6. 第二基准：OlympiadBench（竞赛物理，351 题）
+
+| 模型 | 可判分题数 | cot 正确率 |
+|---|---|---|
+| Qwen2.5-7B-Instruct | 152 | 0.237 [0.171, 0.303] |
+| Qwen2.5-14B-Instruct | 152 | 0.303 [0.230, 0.375] |
+
+**结论**：14B 优于 7B（+6.6pp），与 SciBench 上的 +4.6pp 方向一致，说明规模趋势不是单一基准的偶然。
+
+**可比性限制**：OlympiadBench 351 题中只有 **152 题（43.3%）** 的参考答案可以数值判分，
+其余 199 题是符号解/多变量解（如 `x(t)=A\cos(\Omega t+\phi)`）被剔除。
+能留下纯数值答案的题目本身就偏简单，因此**不能把 OlympiadBench 的 30.3% 与 SciBench 的 25.7% 直接比较**，
+只能在同一基准内部比较模型。子域上两个模型在 optics 均为 0.000，但该子域仅 6 题可判分，
+置信区间退化为 [0, 0]，不作为结论。
+
+### 7. Week 4：错误类型分布（E1 定律误用 / E2 代数计算 / E3 约束违背）
+
+标注方式：以 Qwen2.5-14B 作为标注器，对 7B 与 14B 在 SciBench cot 下的全部错误样本分类。
+已剔除 `unscorable_ref`（参考答案不可判分）与 `unparsed_pred`（模型未给出可解析答案）。
+**这是同族标注器，存在自我偏好风险，见下方限制第 8 条。**
+
+| 模型 | 错误样本 | E1 定律误用 | E2 代数/计算 | E3 约束违背 | N 判定误报 |
+|---|---|---|---|---|---|
+| Qwen2.5-7B | 255 | 29.4% | **57.6%** | 10.2% | 2.7% |
+| Qwen2.5-14B | 240 | 22.5% | **65.0%** | 8.3% | 4.2% |
+
+两模型错误分布卡方检验：chi2 = 4.55, df = 3, **p = 0.208**（无显著差异）。
+
+**发现**：错误的主体是 **E2（代数/计算，58%-65%）**，而非 E1（选错物理定律，22%-29%）。
+即模型多数情况下**选对了物理关系，却在具体数值推导上失败**。
+且 14B 与 7B 的错误类型分布无显著差异 —— 14B 的提升来自"更多题做对"，而不是"换了失败模式"。
+这一结果与第 5 节的 MMLU 对照互为印证：知识层面（选定律、认选项）较强，数值执行层面薄弱。
+
 ---
 
 ## 复现
@@ -145,8 +193,22 @@ python scripts/run_sensitivity.py --model Qwen/Qwen2.5-7B-Instruct --benchmark s
 python scripts/run_causal_tracing.py --model Qwen/Qwen2.5-7B-Instruct --benchmark scibench \
     --max-problems 150 --mode direct --layer-step 2 --device cuda --save
 
-# Week 4 错误类型
-python scripts/classify_errors.py --file results/eval_scibench_cot_*.json --report
+# Week 4 错误类型（用 14B 作为标注器给 7B / 14B 的错误样本分类）
+python scripts/classify_errors.py --file results/eval_scibench_cot_Qwen2.5-7B-Instruct.json \
+    --judge-model Qwen/Qwen2.5-14B-Instruct --backend vllm
+python scripts/classify_errors.py --file results/eval_scibench_cot_Qwen2.5-7B-Instruct.json \
+    --report --compare-file results/eval_scibench_cot_Qwen2.5-14B-Instruct.json
+
+# 跨任务对照：MMLU 物理选择题（488 题，判定走选项字母精确比对）
+python scripts/run_eval.py --model Qwen/Qwen2.5-7B-Instruct --benchmark mmlu_physics \
+    --mode direct --max-problems 488 --backend vllm --save
+
+# 第二基准：OlympiadBench（351 题，仅 152 题可数值判分）
+python scripts/run_eval.py --model Qwen/Qwen2.5-7B-Instruct --benchmark olympiadbench \
+    --mode cot --max-problems 351 --backend vllm --save
+
+# 图 2 / 图 3
+python scripts/make_figures.py
 ```
 
 本次实验所用的完整命令、日志口径与超参记录在 `results/*.json` 的 `meta` 中
@@ -282,7 +344,9 @@ python scripts/gpu_budget.py --throughput-scale 3   # 换成 vLLM 实测吞吐�
 | `results/sensitivity_summary_<model>.json` | 三变体汇总；wording 含配对准确率与 McNemar |
 | `results/sensitivity_<variant>_<model>.json` | 单变体明细，含 `items[]` 逐题审计 |
 | `results/causal_tracing_<bench>_<model>.json` | 逐层恢复率：`average_curve`、`problems[*].curve`、`n_valid` 与跳过计数 |
-| `results/table1_cot.md` / `.tex`、`table1_direct.md` | 自动生成的主表 |
+| `results/table1_cot.md` / `.tex`、`table1_direct.md` | 自动生成的主表（SciBench） |
+| `results/table_olympiad_cot.md`、`table_mmlu.md` | 第二基准与 MCQ 对照的自动表格 |
+| `results/error_labels.json` | Week 4 错误类型标签，键为"(模型, 题 id)" |
 | `results/causal_tracing_Qwen2.5-7B.png` | 图 3：逐层恢复率曲线（均值 ±1 std，标峰值层与平台区） |
 | `results/sensitivity_comparison.png` | 图 2：各模型 numeric vs wording 的输出改变比例 |
 | `results/preflight_<bench>.json` | 一键体检结论 |
@@ -307,10 +371,16 @@ python scripts/gpu_budget.py --throughput-scale 3   # 换成 vLLM 实测吞吐�
 5. **因果追踪仅对开放权重模型做隐藏态干预**，闭源 API 不可复现。仅"clean 答对且 corrupt 确实掉分"
    的题目计入，报告时给出 `n_valid` 与跳过原因计数（本次 150 题中 14 题有效，样本量偏小，
    layer 0-2 的高方差需谨慎解读）。
-6. **可判分覆盖率**：SciBench 物理 323 题全部可判分；OlympiadBench 仅 43.3% 可数值判分，
-   其正确率在可判分子集上计算，覆盖率必须一并报告。
+6. **可判分覆盖率**：SciBench 物理 323 题全部可判分；OlympiadBench 仅 43.3%（152/351）可数值判分，
+   其正确率在可判分子集上计算，覆盖率必须一并报告，且不可与 SciBench 的数值直接横向比较。
 7. **后端差异**：本轮使用 transformers 后端（A800），未安装 vLLM；吞吐比 vLLM 低 5-10 倍。
    结论不受影响，但复现时耗时会有差异。
+8. **错误类型标注器存在同族偏差**：Week 4 使用 Qwen2.5-14B 作为标注器给 7B 与 14B 的错误样本分类，
+   标注器与被评模型同属 Qwen2.5 家族，可能系统性偏好同族模型的输出风格。
+   因此结论按"错误主体是 E2 而非 E1、且两模型分布无显著差异（p=0.208）"这类**粗粒度**方式表述，
+   不使用精确到百分点的类别占比下强结论。换用异族标注器（如 Llama）复核是后续工作。
+9. **MMLU 与 SciBench 是不同任务形态**：前者四选一、后者自由作答，两者正确率不能直接相减，
+   第 5 节的对照仅用于说明"同一模型在不同作答形式下的表现差异"这一方向性结论。
 
 ---
 
