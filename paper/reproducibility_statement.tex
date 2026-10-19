@@ -1,7 +1,7 @@
 % ==========================================================================
 % EMPR 论文 · 可复现性声明 + 算力/硬件披露
 % 英文，可直接粘进论文（放在正文后、Acknowledgments 前）。
-% 凡是 \_\_ 占位处，跑完实验后用真实值替换（不要留空）。
+% 本文件数字全部对应仓库 commit ec5d0c0 的实跑结果；改动实验后请重新核对。
 % 与 paper/TABLES.md 配套：数字一律来自 results/。
 % ==========================================================================
 \section{Reproducibility}
@@ -10,91 +10,173 @@
 \paragraph{Code and version.}
 All code, evaluation scripts, and analysis utilities are released in the
 accompanying repository (\url{https://github.com/380992846-tech/EMPR}) at the
-exact commit used for this paper (\texttt{\_\_COMMIT\_\_}). The full pipeline
-runs from a single configuration file (\texttt{config.yaml}) and a single
-entry point per analysis stage; no manual steps are required to go from the
-raw datasets to every table and figure in this paper.
+exact commit used for this paper
+(\texttt{ec5d0c02c35660a3ac83fc27a1b67de9f0b9df6d}). Defaults live in a single
+configuration file (\texttt{config.yaml}); each analysis stage has a single
+entry point. Every result file records its own provenance in a
+\texttt{meta} block (\texttt{git\_commit}, execution environment,
+\texttt{prompt\_fingerprint}, \texttt{max\_new\_tokens},
+\texttt{chat\_template}, \texttt{wall\_time\_s}), so any number in the paper can
+be traced to the run that produced it.
 
 \paragraph{Datasets.}
-We evaluate on \textbf{SciBench} (\url{https://github.com/mandyyyyii/scibench}),
-physics subsets (matter, class, fund, diff, quan, thermo), with \_\_$N_{sci}$\_\_
-problems after loading, and on \textbf{OlympiadBench} physics
-(\url{https://huggingface.co/datasets/Hothan/OlympiadBench},\;
-configs \texttt{OE\_TO\_physics\_en\_COMP} and
-\texttt{OE\_TO\_physics\_zh\_CEE}). Both are public; they are downloaded
-automatically by \texttt{scripts/download\_data.py} and cached under
-\texttt{data/}. Dataset versions and download dates are recorded in
-\texttt{data/README.md} (\_\_link/\_\_\_date\_\_).
+\textbf{SciBench} physics (\url{https://github.com/mandyyyyii/scibench};
+subjects matter, class, fund, diff, quan, thermo) yields $N_{sci}=323$
+problems, of which mechanics 56, thermodynamics 66, optics 47, math 50,
+quantum 33, general 71. All 323 reference answers are numerically gradable, so
+no sample is excluded from the denominator of the main table.
+\textbf{OlympiadBench} physics
+(\url{https://huggingface.co/datasets/Hothan/OlympiadBench}; configs
+\texttt{OE\_TO\_physics\_en\_COMP} and \texttt{OE\_TO\_physics\_zh\_CEE}) yields
+351 problems, of which only 152 (43.3\%) have a numerically gradable reference
+answer; the remaining 199 are symbolic or multivariate solutions and are
+excluded from the denominator (reported as \texttt{n\_unscored}).
+\textbf{MMLU} physics (\texttt{cais/mmlu}; high-school, college and conceptual
+physics) yields 488 multiple-choice problems. All datasets are public and are
+fetched by \texttt{scripts/download\_data.py}; SciBench is loaded from the local
+\texttt{data/} copy when present so that the exact same 323 problems are used on
+every machine (\texttt{EMPR\_PREFER\_HF=1} overrides this).
 
 \paragraph{Models.}
-All models are open-weight, taken from Hugging Face Hub at their published
-checkpoints: Qwen2.5-7B/14B-Instruct, Llama-3.1-8B/70B-Instruct,
-Mistral-7B-Instruct-v0.3, DeepSeek-R1-Distill-Qwen-14B, and
-Qwen2.5-72B-Instruct (models marked ``gated'' are loaded under a HF Hub
-token; see \texttt{config.yaml} for the full list and access note). No
-closed-weight or API-only model is used for any result; in particular,
-causal tracing is performed exclusively on open-weight models whose residual
-stream is accessible.
+All models are open-weight and were run from public checkpoints:
+Qwen2.5-3B-Instruct, Qwen2.5-7B-Instruct, Qwen2.5-14B-Instruct,
+Meta-Llama-3.1-8B-Instruct, and DeepSeek-R1-Distill-Qwen-7B. No closed-weight or
+API-only model contributes to any reported number. Causal tracing is performed
+exclusively on an open-weight model whose residual stream is accessible
+(Qwen2.5-7B-Instruct). Models listed in \texttt{config.yaml} but not reported
+here were not run and no claim is made about them.
 
 \paragraph{Inference settings.}
-Decoding is \textbf{greedy} (temperature $=0$) with a fixed seed (42), and
-\texttt{max\_new\_tokens}=1024, throughout, so all outputs are deterministic.
-Inference uses vLLM (with a transformers fallback, \texttt{--backend
-transformers}) on a single GPU; the tensor-parallel setting and batch size are
-reported in \texttt{config.yaml}.
+Decoding is \textbf{greedy} (temperature $=0$) with a fixed seed (42), so all
+outputs are deterministic. Maximum new tokens were 1024 for chain-of-thought
+prompts (1536 for the reasoning-distilled model, whose chains are longer) and
+96 for answer-only prompts (64 for multiple-choice and for the sensitivity
+probes). Inference used the \texttt{transformers} backend on a single GPU in
+bfloat16 with batches of 16--48; vLLM was not available in the execution
+environment, so the transformers path was used throughout and no result mixes
+backends. The tokenizer's chat template is applied to every instruct model
+(recorded as \texttt{meta.chat\_template}) and batch generation uses left
+padding.
 
 \paragraph{Answer extraction and grading.}
-Correctness is judged by exact symbolic/numeric comparison. The model's final
-answer is extracted (\texttt{extract\_number}), parsed, and compared to the
-reference under a relative tolerance of 5\% (absolute tolerance 0.01 for
-near-zero targets) using the Python/SymPy evaluator. The grading function is
-unit-tested (\texttt{src/grading.py}, 7/7 self-test cases pass) and is used as
-the sole correctness signal; no LLM judge is used for the primary results to
-avoid circularity.
+Correctness is judged by symbolic/numeric comparison. The final answer is
+extracted by a precedence-ordered procedure (\texttt{ANSWER:} line, taking the
+\emph{last} occurrence; then \texttt{\textbackslash boxed\{\}}; then
+``answer is X''; then the last number on the last line), normalised for Unicode
+minus signs, superscripts, \texttt{\textbackslash times} and thousands
+separators, and compared to the reference under a relative tolerance of 5\%
+(absolute tolerance 0.01 for near-zero targets) via the Python/SymPy evaluator.
+Reference answers are parsed with a \emph{stricter} parser than model outputs:
+a reference that is not a single number (up to units) is marked
+\texttt{unscorable\_ref} and removed from the denominator rather than counted
+as a model error, because a permissive parser would read
+\texttt{x\^{}2+2x} as \texttt{2} and silently corrupt the denominator.
+Grading is covered by 23 self-test cases (\texttt{python -m src.grading},
+23/23 pass) and by the unit-test suite (83 tests). As an end-to-end check, using
+the reference answers as model outputs yields 323/323 self-consistent
+judgements. No LLM judge is used for the primary results.
 
 \paragraph{Statistical protocol.}
-All reported accuracy and sensitivity numbers are accompanied by bootstrap
-95\% confidence intervals from 10{,}000 resamples with seed
-$=$\,42. The bootstrap is implemented in pure Python using
-\texttt{random.Random} and order statistics, so the confidence intervals are
+All reported accuracies carry bootstrap 95\% confidence intervals from
+10{,}000 resamples with seed $=$\,42. The bootstrap is implemented in pure
+Python using \texttt{random.Random} and order statistics, so the intervals are
 reproduced \emph{identically} across machines, independent of the NumPy
-version. Pairwise model comparisons use a McNemar test; error-distribution
-comparisons use a chi-square test.
+version. Pairwise comparisons use McNemar's test (on paired per-problem
+outcomes); error-distribution comparisons use an uncorrected Pearson
+chi-square; agreement between the two error annotators is quantified with
+Cohen's $\kappa$.
+
+\paragraph{Sensitivity probes.}
+Three deterministic perturbations are applied to the same 323 SciBench
+problems: \emph{numeric} (scale physical values; physics intact; 305/323
+problems affected), \emph{wording} (surface paraphrase only, physics and data
+bit-identical; 240/323), and \emph{swap} (exchange two distinct physical
+quantities, creating a physically inconsistent problem; 36/323). Because the
+correct answer to a \emph{numeric} or \emph{swap} variant is not directly
+computable, only the distribution of output change is reported for those
+variants; \emph{wording} keeps the reference answer valid, so it additionally
+supports a paired accuracy comparison. Median and p90 sensitivity are reported
+instead of the mean, since the score $|\Delta|/(|base|+\epsilon)$ is dominated
+by outliers when $|base|\approx 0$.
 
 \paragraph{Causal tracing.}
-We follow the corrupt-and-restore protocol on open-weight models: the numeric
-quantities of a question are replaced with a placeholder (C2 corruption), the
-model is run, and the clean hidden state is restored at exactly one layer at a
-time. Only the targeted layer is restored (the rest remain corrupted), which
-isolates the contribution of each layer and yields the layer-wise recovery
-curves in Fig.~\ref{fig:causal}. We report the critical layer ranges for each
-model and, where relevant, per sub-domain.
+We follow the corrupt-and-restore protocol: the numeric quantities of a question
+are replaced by a semantically empty placeholder (C2 corruption), the corrupted
+prompt is run, and the clean residual stream is restored at exactly one layer
+at a time; all other layers remain corrupted, isolating each layer's
+contribution. Restoration is applied only during prefill (never to single-token
+decode steps), and the clean and corrupted sequences are aligned from the right
+because they tokenise to different lengths. Only problems whose clean run was
+\emph{correct} and whose corrupted run \emph{lost score} enter the recovery
+rate; of 150 attempted problems, 14 qualify (134 skipped as clean-wrong,
+2 as corruption-flat), which is the sample size behind the reported curve.
 
 \paragraph{Hardware and compute.}
-All inference, sensitivity, and causal-tracing runs were executed on a single
-NVIDIA A100-80G GPU (fallback: RTX 4090-24G for models $\le$14B; 70B/72B
-models require A100-80G or 2$\times$ tensor parallel). The model checkpoints
-require $\ge$100\,GB of disk. Total compute for the reported runs is
-\_\_\_$\times$A100\_\_\_hours (\_\_\_ wall-clock); per-stage breakdown is in
-\texttt{config.yaml} and \texttt{DEPLOY\_CHECKLIST.md}.
+All runs were executed on a single NVIDIA A800-80G PCIe GPU (112 vCPU,
+991\,GB RAM, 50\,GB scratch disk) with bf16 weights. Checkpoints were downloaded
+one at a time and deleted after use, so peak scratch usage stayed below 30\,GB;
+a single 14B checkpoint needs $\approx$30\,GB free. Total compute for all
+reported runs is \textbf{$\approx$2.0 GPU-hours}, of which $\approx$1.65\,h is
+the twelve evaluation runs (summed from the \texttt{wall\_time\_s} recorded in
+each result file) and the remainder is sensitivity probes, causal tracing and
+error annotation. Table~\ref{tab:compute} gives the breakdown.
+
+\begin{table}[t]
+  \centering
+  \caption{Compute breakdown for all reported runs (single A800-80G,
+           transformers backend, bf16, greedy decoding). Times are GPU-busy
+           time; model download and orchestration are excluded.}
+  \label{tab:compute}
+  \small
+  \begin{tabular}{@{}l r r@{}}
+    \toprule
+    \textbf{Stage} & \textbf{Runs / scale} & \textbf{GPU time} \\
+    \midrule
+    SciBench, chain-of-thought        & 5 models $\times$ 323 & 1.05\,h \\
+    SciBench, answer-only             & 4 models $\times$ 323 & 0.02\,h \\
+    OlympiadBench, chain-of-thought   & 2 models $\times$ 351 (152 gradable) & 0.58\,h \\
+    MMLU physics, multiple choice     & 1 model $\times$ 488  & 0.002\,h \\
+    Sensitivity probes                & 4 models $\times$ 323 $\times$ 3 variants & 0.10\,h \\
+    Causal tracing                    & 1 model, 150 attempted (14 valid) & 0.05\,h \\
+    Error annotation                  & 2 judges $\times$ 495 samples & 0.17\,h \\
+    \midrule
+    \textbf{Total}                    & 22 runs & \textbf{$\approx$2.0\,h} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \paragraph{Reproducibility checklist.}
 \begin{itemize}
   \item Deterministic decoding (temperature 0, seed 42): \checkmark
-  \item Public datasets + auto-download script: \checkmark
+  \item Public datasets + scripted download, pinned local copy: \checkmark
   \item Open-weight models, public checkpoints: \checkmark
-  \item Symbolic/numeric grading with self-test: \checkmark
-  \item Bootstrap 95\% CI, machine-independent: \checkmark
-  \item Causal tracing on open-weight models only: \checkmark
-  \item Code and config at a pinned commit: \checkmark
+  \item Symbolic/numeric grading with 23-case self-test and 83 unit tests: \checkmark
+  \item Reference-answer strictness separated from output-extraction leniency: \checkmark
+  \item Bootstrap 95\% CI, machine-independent (pure Python): \checkmark
+  \item Causal tracing on an open-weight model only: \checkmark
+  \item Code, config and per-run metadata at a pinned commit: \checkmark
+  \item Error-type annotation cross-checked with a second, cross-family judge: \checkmark
 \end{itemize}
 
-\paragraph{Limitations affecting reproducibility.}
-The \texttt{swap} perturbation (physically-inconsistent questions) has a
-coverage of \_\_\%~(\_\_/ $\_\_$ of the physics problems relevant to the
-analysis) because many problems contain quantities of a single type or no
-units; this is reported as a limitation rather than artificially inflated.
-Unparsed model outputs are counted and reported (\texttt{n\_unparsed}), never
-imputed. Heuristics used by the surface-perturbation generator
-(\texttt{wording}) are deterministic and listed in the code, so the
-perturbations themselves are reproducible.
+\paragraph{Limitations affecting reproducibility and interpretation.}
+(i) The \texttt{swap} perturbation covers only 36/323 problems (11.1\%) because
+many problems contain quantities of a single type or carry no unit; this is
+reported rather than artificially inflated, and the swap results are treated as
+supporting evidence only.
+(ii) OlympiadBench is evaluated only on the 43.3\% of problems whose reference
+answer is numerically gradable; that subset is biased towards easier items, so
+OlympiadBench accuracies must not be compared numerically with SciBench
+accuracies.
+(iii) Error-type shares are annotator-dependent: a same-family judge
+(Qwen2.5-14B) and a cross-family judge (Llama-3.1-8B) agree on only
+$\kappa=0.133$ (60.2\% raw agreement) on the same 495 samples. Both judges
+identify E2 (algebraic/computational error) as the dominant category and E3 as
+rare, which is what we claim; the precise E1/E2 split is not claimed, because the
+E1/E2 boundary is intrinsically fuzzy (applying the wrong law usually also
+shows up as an arithmetic error).
+(iv) Unparsed model outputs are counted and reported
+(\texttt{n\_unparsed\_pred}), never imputed; on SciBench this count is zero for
+all reported runs.
+(v) Throughput figures refer to the transformers backend; vLLM would be
+5--10$\times$ faster but is not used here, so wall-clock times are not
+comparable across backends.

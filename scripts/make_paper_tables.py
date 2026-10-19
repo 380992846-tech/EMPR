@@ -133,17 +133,17 @@ def table3_causal():
     d = json.loads(f.read_text(encoding="utf-8"))
     buckets = [("0--2", [0, 2]), ("4--8", [4, 6, 8]), ("10--16", [10, 12, 14, 16]),
                ("18--22", [18, 20, 22]), ("24--26", [24, 26])]
+    n_tried = d['n_valid'] + d['n_skipped_clean_wrong'] + d['n_skipped_corrupt_flat']
     lines = [
         r"% 由 scripts/make_paper_tables.py 从 results/causal_tracing_*.json 生成，请勿手改",
         r"\begin{table}[t]",
         r"  \centering",
         r"  \caption{Causal tracing on Qwen2.5-7B-Instruct (28 layers): recovery rate when the",
         r"           clean residual stream is restored at a single layer of the corrupted run.",
-        rf"           Only problems whose clean run was correct \emph{{and}} whose corrupted run",
-        rf"           actually lost score are counted ($n={d['n_valid']}$ of",
-        rf"           {d['n_valid'] + d['n_skipped_clean_wrong'] + d['n_skipped_corrupt_flat']}"
-        rf"           attempted; skipped {d['n_skipped_clean_wrong']} clean-wrong and",
-        rf"           {d['n_skipped_corrupt_flat']} corrupted-flat).",
+        r"           Only problems whose clean run was correct \emph{and} whose corrupted run",
+        rf"           actually lost score are counted ($n={d['n_valid']}$ of {n_tried} attempted;",
+        rf"           skipped {d['n_skipped_clean_wrong']} clean-wrong and",
+        rf"           {d['n_skipped_corrupt_flat']} corrupted-flat).}}",
         r"  \label{tab:causal}",
         r"  \small",
         r"  \begin{tabular}{@{}l c c@{}}",

@@ -271,7 +271,8 @@ python scripts/make_figures.py
 
 结论：
 
-- **本轮全部实验的净 GPU 计算约 1.2 卡时**（5 个模型 x 5 次全量或大规模推理 + 4 次敏感性 + 2 轮因果追踪）。
+- **本轮全部实验的净 GPU 计算约 2.0 卡时**（12 次评测 run + 4 次敏感性 + 2 轮因果追踪 + 4 次错误标注，
+  明细见 `paper/reproducibility_statement.tex` 的 compute 表）。
 - 与预算脚本的差异主要来自后端：`transformers.generate` 无连续批处理，7B 实测 294 tok/s、
   14B 105 tok/s，而 vLLM 通常快 5-10 倍。
 - **时间主要花在模型下载**（约 55 分钟，走 ModelScope 约 14 MB/s），而非推理本身。
