@@ -1,0 +1,24 @@
+% 由 scripts/make_paper_tables.py 从 results/eval_*.json 生成，请勿手改
+\begin{table}[t]
+  \centering
+  \caption{Same model, different answer formats. Multiple-choice recognition is easy;
+           producing the final number is not. Task formats are not directly comparable
+           (selection vs.\ generation), so the contrast is interpreted qualitatively.}
+  \label{tab:cross-task}
+  \small
+  \begin{tabular}{@{}l l r c@{}}
+    \toprule
+    \textbf{Task} & \textbf{Answer format} & \textbf{$n$ (gradable)} & \textbf{Accuracy} \\
+    \midrule
+    MMLU physics (high-school + college + conceptual) & select A--D & 488 & 66.6\,[62.3, 70.7] \\
+    SciBench physics, cot & write the number & 323 & 21.1\,[16.7, 25.7] \\
+    SciBench physics, direct & write the number & 323 & 8.7\,[5.6, 11.8] \\
+    OlympiadBench physics, cot & write the number & 152 of 351 & 23.7\,[17.1, 30.3] \\
+    \bottomrule
+  \end{tabular}
+  \vspace{2pt}
+  \parbox{\linewidth}{\footnotesize Model: Qwen2.5-7B-Instruct. OlympiadBench is
+  evaluated only on the subset whose reference answer is numerically gradable
+  (152 of 351), which is biased towards easier items; it must not be compared
+  numerically against SciBench.}
+\end{table}

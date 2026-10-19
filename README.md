@@ -150,7 +150,6 @@ layer 0 的高方差（±0.91）来自 embedding 级恢复的不稳定性，不�
 
 标注方式：以 Qwen2.5-14B 作为标注器，对 7B 与 14B 在 SciBench cot 下的全部错误样本分类。
 已剔除 `unscorable_ref`（参考答案不可判分）与 `unparsed_pred`（模型未给出可解析答案）。
-**这是同族标注器，存在自我偏好风险，见下方限制第 8 条。**
 
 | 模型 | 错误样本 | E1 定律误用 | E2 代数/计算 | E3 约束违背 | N 判定误报 |
 |---|---|---|---|---|---|
@@ -163,6 +162,29 @@ layer 0 的高方差（±0.91）来自 embedding 级恢复的不稳定性，不�
 即模型多数情况下**选对了物理关系，却在具体数值推导上失败**。
 且 14B 与 7B 的错误类型分布无显著差异 —— 14B 的提升来自"更多题做对"，而不是"换了失败模式"。
 这一结果与第 5 节的 MMLU 对照互为印证：知识层面（选定律、认选项）较强，数值执行层面薄弱。
+
+#### 7.1 异族标注器复核（关键：这条结论有多稳？）
+
+同族标注器可能有自我偏好，因此用**异族**的 Llama-3.1-8B 对**同一批 495 条样本**独立重标：
+
+| 标注器 | E1 | E2 | E3 | N |
+|---|---|---|---|---|
+| Qwen2.5-14B（同族） | 26.1% | 61.2% | 9.3% | 3.4% |
+| Llama-3.1-8B（异族） | 8.3% | **83.6%** | 8.1% | 0.0% |
+
+一致性：**观测一致率 60.2%（298/495），Cohen's kappa = 0.133**（按 Landis-Koch 分级属"一致性偏低"）。
+
+**双向解读（都写进论文）**：
+
+- **稳健的部分**：两位标注器的众数类别**都是 E2**，且 E3 都稳定在 8%-9% 的低位。
+  因此"错误主体是代数/计算而非选错定律""E3 占比小"这两条结论在换标注器后依然成立。
+- **不稳健的部分**：E1 与 E2 的具体比例高度依赖标注器（同族给 E1 26%、异族只给 8%），
+  kappa 0.133 说明细粒度归因基本没有超出随机的共识。原因有二：
+  (a) E1/E2 的边界本身模糊 —— 用错定律往往也表现为算错；
+  (b) 异族标注器从不输出 N（识别不出判分误报），并把大量 E1 并入 E2。
+
+**因此本项目的 Week 4 结论只做粗粒度表述**（"E2 为主、E3 小、7B/14B 分布无显著差异"），
+**不引用精确百分比**。这也是 `paper/table4_errors.tex` 同时给出两位标注器两行的原因。
 
 ---
 
@@ -198,6 +220,13 @@ python scripts/classify_errors.py --file results/eval_scibench_cot_Qwen2.5-7B-In
     --judge-model Qwen/Qwen2.5-14B-Instruct --backend vllm
 python scripts/classify_errors.py --file results/eval_scibench_cot_Qwen2.5-7B-Instruct.json \
     --report --compare-file results/eval_scibench_cot_Qwen2.5-14B-Instruct.json
+
+# Week 4 异族标注器复核（写入独立标签文件，避免覆盖同族标签）
+python scripts/classify_errors.py --file results/eval_scibench_cot_Qwen2.5-7B-Instruct.json \
+    --judge-model meta-llama/Llama-3.1-8B-Instruct --backend vllm \
+    --labels-file results/error_labels_llama.json
+python scripts/compare_labels.py --a results/error_labels.json \
+    --b results/error_labels_llama.json --json results/error_label_agreement.json
 
 # 跨任务对照：MMLU 物理选择题（488 题，判定走选项字母精确比对）
 python scripts/run_eval.py --model Qwen/Qwen2.5-7B-Instruct --benchmark mmlu_physics \
@@ -346,7 +375,10 @@ python scripts/gpu_budget.py --throughput-scale 3   # 换成 vLLM 实测吞吐�
 | `results/causal_tracing_<bench>_<model>.json` | 逐层恢复率：`average_curve`、`problems[*].curve`、`n_valid` 与跳过计数 |
 | `results/table1_cot.md` / `.tex`、`table1_direct.md` | 自动生成的主表（SciBench） |
 | `results/table_olympiad_cot.md`、`table_mmlu.md` | 第二基准与 MCQ 对照的自动表格 |
-| `results/error_labels.json` | Week 4 错误类型标签，键为"(模型, 题 id)" |
+| `results/error_labels.json` | Week 4 错误类型标签（Qwen2.5-14B 标注），键为"(模型, 题 id)" |
+| `results/error_labels_llama.json` | 同一批样本的异族标注（Llama-3.1-8B），用于一致性复核 |
+| `results/error_label_agreement.json` | 两位标注器的一致率、Cohen's kappa 与分布对比 |
+| `paper/table1_main.tex` … `table5_cross_task.tex` | 由 `scripts/make_paper_tables.py` 从 results 生成的论文表格（数字不手抄） |
 | `results/causal_tracing_Qwen2.5-7B.png` | 图 3：逐层恢复率曲线（均值 ±1 std，标峰值层与平台区） |
 | `results/sensitivity_comparison.png` | 图 2：各模型 numeric vs wording 的输出改变比例 |
 | `results/preflight_<bench>.json` | 一键体检结论 |
@@ -375,10 +407,11 @@ python scripts/gpu_budget.py --throughput-scale 3   # 换成 vLLM 实测吞吐�
    其正确率在可判分子集上计算，覆盖率必须一并报告，且不可与 SciBench 的数值直接横向比较。
 7. **后端差异**：本轮使用 transformers 后端（A800），未安装 vLLM；吞吐比 vLLM 低 5-10 倍。
    结论不受影响，但复现时耗时会有差异。
-8. **错误类型标注器存在同族偏差**：Week 4 使用 Qwen2.5-14B 作为标注器给 7B 与 14B 的错误样本分类，
-   标注器与被评模型同属 Qwen2.5 家族，可能系统性偏好同族模型的输出风格。
-   因此结论按"错误主体是 E2 而非 E1、且两模型分布无显著差异（p=0.208）"这类**粗粒度**方式表述，
-   不使用精确到百分点的类别占比下强结论。换用异族标注器（如 Llama）复核是后续工作。
+8. **错误类型标注存在标注器依赖**：Week 4 用 Qwen2.5-14B（同族）与 Llama-3.1-8B（异族）
+   两条独立标注链复核同一批 495 条样本，观测一致率 60.2%、**Cohen's kappa = 0.133**。
+   两位标注器都认定 E2 为主、E3 占比小，但 E1/E2 的具体比例差异大（26.1% vs 8.3%）。
+   因此结论按粗粒度表述（"E2 为主、E3 小、两模型分布无显著差异"），不引用精确百分比。
+   E1/E2 边界本身模糊（用错定律往往也表现为算错），这是该分类体系的固有局限。
 9. **MMLU 与 SciBench 是不同任务形态**：前者四选一、后者自由作答，两者正确率不能直接相减，
    第 5 节的对照仅用于说明"同一模型在不同作答形式下的表现差异"这一方向性结论。
 

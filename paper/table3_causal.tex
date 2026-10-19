@@ -1,30 +1,27 @@
-% ==========================================================================
-% EMPR 因果追踪表骨架（逐层恢复率，核心机制定位）
-% 数字来自 scripts/run_causal_tracing.py --save --plot 的 results/ json。
-% 注意：只用开放权重模型（8B/14B，70B 可选），不要做闭源 API 的隐藏态干预。
-% 也可折成"层区间 × 物理子域"角度，看是否验证"热力学偏后、光学偏前"。
-% ==========================================================================
+% 由 scripts/make_paper_tables.py 从 results/causal_tracing_*.json 生成，请勿手改
 \begin{table}[t]
   \centering
-  \caption{Causal tracing recovery rate by layer (open-weight model, e.g.\
-           Qwen2.5-14B-Instruct). Higher recovery at layer $i$ means the
-           computation for the physical answer is localized around that layer.}
+  \caption{Causal tracing on Qwen2.5-7B-Instruct (28 layers): recovery rate when the
+           clean residual stream is restored at a single layer of the corrupted run.
+           Only problems whose clean run was correct \emph{and} whose corrupted run
+           actually lost score are counted ($n=14$ of
+           150           attempted; skipped 134 clean-wrong and
+           2 corrupted-flat).
   \label{tab:causal}
   \small
-  \begin{tabular}{@{}l l c@{}}
+  \begin{tabular}{@{}l c c@{}}
     \toprule
-    \textbf{Model} & \textbf{Method} & \textbf{Critical layer range (recovery $\uparrow$)} \\
+    \textbf{Layer range} & \textbf{Mean recovery} & \textbf{Mean $\pm$1 std across problems} \\
     \midrule
-    \_\_\_\_\_\_\_\_ & corrupt-numeric$\rightarrow$restore & layers \_\_--\_\_ (peak recovered) \\
-    \_\_\_\_\_\_\_\_ & corrupt-numeric$\rightarrow$restore & layers \_\_--\_\_ \\
+    layers 0--2 & +0.431 & $\pm$0.912 \\
+    layers 4--8$^\dagger$ & +0.665 & $\pm$0.378 \\
+    layers 10--16 & +0.614 & $\pm$0.431 \\
+    layers 18--22 & +0.238 & $\pm$0.337 \\
+    layers 24--26 & +0.061 & $\pm$0.174 \\
     \bottomrule
   \end{tabular}
+  \vspace{2pt}
+  \parbox{\linewidth}{\footnotesize $^\dagger$Peak recovery occurs at layer 8
+  ($+0.837 \pm 0.251$). Layers 0--2 show high variance because restoring the
+  embedding-level state is unstable; recovery collapses after layer 18.}
 \end{table}
-
-% 图：恢复率-层曲线 / 热力图（run_causal_tracing.py --plot 生成）
-% \begin{figure}[t]
-%   \centering
-%   \includegraphics[width=.8\linewidth]{figures/causal_recovery.png}
-%   \caption{Recovery rate as a function of restored layer, per sub-domain.}
-%   \label{fig:causal}
-% \end{figure}

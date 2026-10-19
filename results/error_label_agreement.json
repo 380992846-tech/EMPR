@@ -1,0 +1,30 @@
+{
+  "n_a": 495,
+  "n_b": 495,
+  "n_common": 495,
+  "n_compared": 495,
+  "n_skipped": 0,
+  "observed_agreement": 0.602,
+  "cohens_kappa": 0.1328,
+  "distribution": {
+    "E1": {
+      "a": 0.2606,
+      "b": 0.0828
+    },
+    "E2": {
+      "a": 0.6121,
+      "b": 0.8364
+    },
+    "E3": {
+      "a": 0.0929,
+      "b": 0.0808
+    },
+    "N": {
+      "a": 0.0343,
+      "b": 0.0
+    }
+  },
+  "main_error_a": "E2",
+  "main_error_b": "E2",
+  "main_error_agree": true
+}

@@ -82,14 +82,17 @@ def _load_eval(file_or_path):
     return data, wrong
 
 
-def _load_labels():
-    if LABELS_FILE.exists():
-        return json.loads(LABELS_FILE.read_text(encoding="utf-8"))
+def _load_labels(path=None):
+    p = Path(path) if path else LABELS_FILE
+    if p.exists():
+        return json.loads(p.read_text(encoding="utf-8"))
     return {}
 
 
-def _save_labels(labels):
-    LABELS_FILE.write_text(json.dumps(labels, ensure_ascii=False, indent=2), encoding="utf-8")
+def _save_labels(labels, path=None):
+    p = Path(path) if path else LABELS_FILE
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(labels, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _label_key(model, pid):
@@ -98,8 +101,8 @@ def _label_key(model, pid):
 
 
 # ---------------------------------------------------------------- 手动标注
-def _manual_label(data, wrong):
-    labels = _load_labels()
+def _manual_label(data, wrong, labels_file=None):
+    labels = _load_labels(labels_file)
     model = data.get("model", "unknown")
     todo = [d for d in wrong if _label_key(model, d["id"]) not in labels]
     print(f"模型 {model}：共 {len(wrong)} 个错误样本，未标注 {len(todo)} 个（可 Ctrl-C 中断，进度会保存）")
@@ -114,20 +117,20 @@ def _manual_label(data, wrong):
         while True:
             ans = input("  类别 (E1/E2/E3/N/S，q=退出): ").strip().upper()
             if ans == "Q":
-                _save_labels(labels)
+                _save_labels(labels, labels_file)
                 print("已保存，退出。")
                 return labels
             if ans in ("E1", "E2", "E3", "N", "S"):
                 labels[_label_key(model, d["id"])] = ans
-                _save_labels(labels)
+                _save_labels(labels, labels_file)
                 break
             print("  输入无效，请输入 E1/E2/E3/N/S")
     return labels
 
 
 # ---------------------------------------------------------------- LLM 标注
-def _judge_label(data, wrong, judge_model, backend, cfg):
-    labels = _load_labels()
+def _judge_label(data, wrong, judge_model, backend, cfg, labels_file=None):
+    labels = _load_labels(labels_file)
     model = data.get("model", "unknown")
     todo = [d for d in wrong if _label_key(model, d["id"]) not in labels]
     if not todo:
@@ -148,13 +151,13 @@ def _judge_label(data, wrong, judge_model, backend, cfg):
             labels[_label_key(model, d["id"])] = "N"
         else:
             labels[_label_key(model, d["id"])] = "?"
-    _save_labels(labels)
+    _save_labels(labels, labels_file)
     return labels
 
 
 # ---------------------------------------------------------------- 报告
-def _report(data, compare=None, label_keys=("E1", "E2", "E3", "N")):
-    labels = _load_labels()
+def _report(data, compare=None, label_keys=("E1", "E2", "E3", "N"), labels_file=None):
+    labels = _load_labels(labels_file)
     model = data.get("model", "unknown")
     count = {k: sum(1 for d in data["detail"] if labels.get(_label_key(model, d["id"])) == k)
              for k in label_keys}
@@ -195,6 +198,8 @@ def main():
     p.add_argument("--backend", default="auto")
     p.add_argument("--report", action="store_true", help="只出统计报告")
     p.add_argument("--compare-file", default=None, help="另一个 eval json，做错误分布卡方对比")
+    p.add_argument("--labels-file", default=None,
+                   help="标签文件路径；换用异族标注器复核时用另一个文件，避免覆盖已有标签")
     args = p.parse_args()
 
     # 从 config.yaml 读 seed，而非硬编码
@@ -207,16 +212,16 @@ def main():
 
     if args.report:
         cmp = _load_eval(args.compare_file)[0] if args.compare_file else None
-        _report(data, cmp)
+        _report(data, cmp, labels_file=args.labels_file)
         return
 
     if args.judge_model:
-        _judge_label(data, wrong, args.judge_model, args.backend, cfg)
+        _judge_label(data, wrong, args.judge_model, args.backend, cfg, args.labels_file)
     else:
-        _manual_label(data, wrong)
+        _manual_label(data, wrong, args.labels_file)
 
     print("\n标注完成，分布：")
-    _report(data)
+    _report(data, labels_file=args.labels_file)
 
 
 if __name__ == "__main__":
