@@ -272,7 +272,7 @@ def main():
                 n_problems=len(rows), max_new_tokens=max_new_tokens,
                 prompt_fingerprint=fp, self_check=args.self_check)
             if args.save:
-                fname = f"eval_{benchmark}_{mode}_{m.replace('/', '__')}.json"
+                fname = f"eval_{benchmark}_{mode}_{meta_mod.model_slug(m)}.json"
                 out_dir = Path(args.out_dir)
                 meta_mod.write_json(out_dir / fname, rep)
                 print(f"[save] {out_dir / fname}")

@@ -41,6 +41,20 @@ def fingerprint(text: str) -> str:
     return hashlib.sha1(str(text).encode("utf-8")).hexdigest()[:12]
 
 
+def model_slug(name: str) -> str:
+    """把模型标识转成安全的文件名片段。
+
+    同时支持两种传入方式：
+      * HF id：``Qwen/Qwen2.5-7B-Instruct``          -> ``Qwen__Qwen2.5-7B-Instruct``
+      * 本地权重目录：``/root/models/Qwen2.5-7B-Instruct`` -> ``models__Qwen2.5-7B-Instruct``
+    只用末两段，避免绝对路径把文件名搞成一长串。完整标识仍写在 json 的 ``model`` 字段里。
+    """
+    parts = [p for p in str(name).replace("\\", "/").strip("/").split("/") if p]
+    if not parts:
+        return "unknown"
+    return "__".join(parts[-2:]) if len(parts) >= 2 else parts[0]
+
+
 def env_summary() -> dict:
     info = {"python": platform.python_version(), "platform": platform.platform(),
             "cpu_count": os.cpu_count()}

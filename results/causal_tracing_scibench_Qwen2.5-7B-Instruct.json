@@ -1,0 +1,1471 @@
+{
+  "meta": {
+    "script": "run_causal_tracing.py",
+    "created_utc": "2026-10-19T08:05:33Z",
+    "git_commit": "4e184eb+dirty",
+    "env": {
+      "python": "3.12.3",
+      "platform": "Linux-4.19.90-2107.6.0.0192.8.oe1.bclinux.x86_64-x86_64-with-glibc2.35",
+      "cpu_count": 112,
+      "torch": "2.11.0+cu128",
+      "cuda_available": true,
+      "gpu": "NVIDIA A800 80GB PCIe",
+      "gpu_count": 1,
+      "transformers": "5.20.1",
+      "vllm": null
+    },
+    "argv": [
+      "--model",
+      "/root/autodl-tmp/models/Qwen2.5-7B-Instruct",
+      "--benchmark",
+      "scibench",
+      "--max-problems",
+      "150",
+      "--mode",
+      "direct",
+      "--layer-step",
+      "2",
+      "--max-new-tokens",
+      "96",
+      "--device",
+      "cuda",
+      "--save"
+    ],
+    "model": "/root/autodl-tmp/models/Qwen2.5-7B-Instruct",
+    "benchmark": "scibench",
+    "mode": "direct",
+    "n_layers": 28,
+    "layer_step": 2,
+    "max_new_tokens": 96,
+    "device": "cuda",
+    "n_problems": 150,
+    "chat_template": true,
+    "prompt_fingerprint": "8ddbee089897"
+  },
+  "model": "/root/autodl-tmp/models/Qwen2.5-7B-Instruct",
+  "benchmark": "scibench",
+  "mode": "direct",
+  "n_layers": 28,
+  "layer_step": 2,
+  "n_valid": 14,
+  "n_skipped_clean_wrong": 134,
+  "n_skipped_corrupt_flat": 2,
+  "average_curve": [
+    {
+      "layer": 0,
+      "mean_recovery": 0.441,
+      "std": 0.9145,
+      "n": 14
+    },
+    {
+      "layer": 2,
+      "mean_recovery": 0.4205,
+      "std": 0.9092,
+      "n": 14
+    },
+    {
+      "layer": 4,
+      "mean_recovery": 0.5727,
+      "std": 0.4574,
+      "n": 14
+    },
+    {
+      "layer": 6,
+      "mean_recovery": 0.5863,
+      "std": 0.4247,
+      "n": 14
+    },
+    {
+      "layer": 8,
+      "mean_recovery": 0.8365,
+      "std": 0.2505,
+      "n": 14
+    },
+    {
+      "layer": 10,
+      "mean_recovery": 0.6966,
+      "std": 0.3718,
+      "n": 14
+    },
+    {
+      "layer": 12,
+      "mean_recovery": 0.5883,
+      "std": 0.4863,
+      "n": 14
+    },
+    {
+      "layer": 14,
+      "mean_recovery": 0.654,
+      "std": 0.4148,
+      "n": 14
+    },
+    {
+      "layer": 16,
+      "mean_recovery": 0.5177,
+      "std": 0.4525,
+      "n": 14
+    },
+    {
+      "layer": 18,
+      "mean_recovery": 0.4202,
+      "std": 0.4101,
+      "n": 14
+    },
+    {
+      "layer": 20,
+      "mean_recovery": 0.1993,
+      "std": 0.3992,
+      "n": 14
+    },
+    {
+      "layer": 22,
+      "mean_recovery": 0.0954,
+      "std": 0.2005,
+      "n": 14
+    },
+    {
+      "layer": 24,
+      "mean_recovery": 0.043,
+      "std": 0.1549,
+      "n": 14
+    },
+    {
+      "layer": 26,
+      "mean_recovery": 0.0787,
+      "std": 0.1937,
+      "n": 14
+    }
+  ],
+  "problems": {
+    "scibench-thermo-0": {
+      "ref": "-131.1",
+      "domain": "thermodynamics",
+      "perf_clean": 0.9638,
+      "perf_corrupt": 0.0,
+      "peak_layer": 0,
+      "peak_recovery": 1.0014,
+      "corrupt_prompt": "Consider the half-cell reaction $\\operatorname{AgCl}(s)+\\mathrm{e}^{-} \\rightarrow$ $\\operatorname{Ag}(s)+\\mathrm{Cl}^{-}(a q)$. If $\\mu^{\\circ}(\\mathrm{AgCl}, s)=zork blork \\mathrm{~mol}^{zork blork}$, and if $E^{\\circ}=+zork blork$ for this half-cell, calculate the standard Gibbs energy of formation of $\\mathrm{Cl}^{-}(a q)$.",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.9651,
+          "recovery": 1.0014,
+          "correct": true
+        },
+        {
+          "layer": 2,
+          "perf": 0.6658,
+          "recovery": 0.6909,
+          "correct": false
+        },
+        {
+          "layer": 4,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 6,
+          "perf": 0.0051,
+          "recovery": 0.0052,
+          "correct": false
+        },
+        {
+          "layer": 8,
+          "perf": 0.7451,
+          "recovery": 0.7731,
+          "correct": false
+        },
+        {
+          "layer": 10,
+          "perf": 0.8368,
+          "recovery": 0.8683,
+          "correct": false
+        },
+        {
+          "layer": 12,
+          "perf": 0.0009,
+          "recovery": 0.0009,
+          "correct": false
+        },
+        {
+          "layer": 14,
+          "perf": 0.8368,
+          "recovery": 0.8683,
+          "correct": false
+        },
+        {
+          "layer": 16,
+          "perf": 0.3614,
+          "recovery": 0.375,
+          "correct": false
+        },
+        {
+          "layer": 18,
+          "perf": 0.3614,
+          "recovery": 0.375,
+          "correct": false
+        },
+        {
+          "layer": 20,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 22,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-fund-3": {
+      "ref": "10.4",
+      "domain": "general",
+      "perf_clean": 1.0,
+      "perf_corrupt": 0.0,
+      "peak_layer": 0,
+      "peak_recovery": 1.0,
+      "corrupt_prompt": "You drive a beat-up pickup truck along a straight road for $zork blork$ at $zork blork$, at which point the truck runs out of gasoline and stops. Over the next $zork blork$, you walk another $zork blork$ farther along the road to a gasoline station.\r\nWhat is your overall displacement from the beginning of your drive to your arrival at the station?",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 2,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 4,
+          "perf": 0.1923,
+          "recovery": 0.1923,
+          "correct": false
+        },
+        {
+          "layer": 6,
+          "perf": 0.1923,
+          "recovery": 0.1923,
+          "correct": false
+        },
+        {
+          "layer": 8,
+          "perf": 0.8077,
+          "recovery": 0.8077,
+          "correct": false
+        },
+        {
+          "layer": 10,
+          "perf": 0.8077,
+          "recovery": 0.8077,
+          "correct": false
+        },
+        {
+          "layer": 12,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 14,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 16,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 18,
+          "perf": 0.1923,
+          "recovery": 0.1923,
+          "correct": false
+        },
+        {
+          "layer": 20,
+          "perf": 0.1923,
+          "recovery": 0.1923,
+          "correct": false
+        },
+        {
+          "layer": 22,
+          "perf": 0.1923,
+          "recovery": 0.1923,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-matter-3": {
+      "ref": "234.4",
+      "domain": "optics",
+      "perf_clean": 0.9996,
+      "perf_corrupt": 0.0,
+      "peak_layer": 0,
+      "peak_recovery": 1.0,
+      "corrupt_prompt": "The enthalpy of fusion of mercury is $zork blork \\mathrm{~mol}^{zork blork}$, and its normal freezing point is $zork blork$ with a change in molar volume of $+zork blork \\mathrm{~mol}^{zork blork}$ on melting. At what temperature will the bottom of a column of mercury (density $zork blork \\mathrm{~cm}^{zork blork}$ ) of height $zork blork$ be expected to freeze?",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.9996,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 2,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 4,
+          "perf": 0.9996,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 6,
+          "perf": 0.9996,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 8,
+          "perf": 0.9996,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 10,
+          "perf": 0.9996,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 12,
+          "perf": 0.9996,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 14,
+          "perf": 0.9996,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 16,
+          "perf": 0.9972,
+          "recovery": 0.9976,
+          "correct": true
+        },
+        {
+          "layer": 18,
+          "perf": 0.9865,
+          "recovery": 0.9869,
+          "correct": true
+        },
+        {
+          "layer": 20,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 22,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-quan-3": {
+      "ref": "2.5151",
+      "domain": "quantum",
+      "perf_clean": 0.9656,
+      "perf_corrupt": 0.0,
+      "peak_layer": 18,
+      "peak_recovery": 1.012,
+      "corrupt_prompt": "The ${ }^zork blork \\mathrm{H}$ ground electronic state has $D_zork blork=zork blork, \\nu_e / c=zork blork$, and $\\nu_e x_e / c=zork blork$, where $c$ is the speed of light. (These last two quantities are usually designated $\\omega_e$ and $\\omega_e x_e$ in the literature.) Calculate $D_e$ for ${ }^zork blork \\mathrm{H}$.",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 2,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 4,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 6,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 8,
+          "perf": 0.7952,
+          "recovery": 0.8235,
+          "correct": false
+        },
+        {
+          "layer": 10,
+          "perf": 0.7952,
+          "recovery": 0.8235,
+          "correct": false
+        },
+        {
+          "layer": 12,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 14,
+          "perf": 0.9657,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 16,
+          "perf": 0.9534,
+          "recovery": 0.9873,
+          "correct": true
+        },
+        {
+          "layer": 18,
+          "perf": 0.9773,
+          "recovery": 1.012,
+          "correct": true
+        },
+        {
+          "layer": 20,
+          "perf": 0.9651,
+          "recovery": 0.9994,
+          "correct": true
+        },
+        {
+          "layer": 22,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-fund-6": {
+      "ref": "4.0",
+      "domain": "general",
+      "perf_clean": 1.0,
+      "perf_corrupt": 0.0,
+      "peak_layer": 2,
+      "peak_recovery": 1.0,
+      "corrupt_prompt": "During a storm, a crate of crepe is sliding across a slick, oily parking lot through a displacement $\\vec{d}=(zork blork) \\hat{\\mathrm{i}}$ while a steady wind pushes against the crate with a force $\\vec{F}=(zork blork) \\hat{\\mathrm{i}}+(zork blork) \\hat{\\mathrm{j}}$. If the crate has a kinetic energy of $zork blork$ at the beginning of displacement $\\vec{d}$, what is its kinetic energy at the end of $\\vec{d}$ ?",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 2,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 4,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 6,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 8,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 10,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 12,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 14,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 16,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 18,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 20,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 22,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.5,
+          "recovery": 0.5,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-matter-6": {
+      "ref": "3.54",
+      "domain": "optics",
+      "perf_clean": 0.9887,
+      "perf_corrupt": 0.9831,
+      "peak_layer": 4,
+      "peak_recovery": 1.0,
+      "corrupt_prompt": "The promotion of an electron from the valence band into the conduction band in pure $\\mathrm{TIO}_zork blork$ by light absorption requires a wavelength of less than $zork blork$. Calculate the energy gap in electronvolts between the valence and conduction bands.",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.9689,
+          "recovery": -2.5,
+          "correct": true
+        },
+        {
+          "layer": 2,
+          "perf": 0.9689,
+          "recovery": -2.5,
+          "correct": true
+        },
+        {
+          "layer": 4,
+          "perf": 0.9887,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 6,
+          "perf": 0.9887,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 8,
+          "perf": 0.9887,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 10,
+          "perf": 0.9887,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 12,
+          "perf": 0.9887,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 14,
+          "perf": 0.9887,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 16,
+          "perf": 0.9887,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 18,
+          "perf": 0.9831,
+          "recovery": 0.0,
+          "correct": true
+        },
+        {
+          "layer": 20,
+          "perf": 0.9831,
+          "recovery": 0.0,
+          "correct": true
+        },
+        {
+          "layer": 22,
+          "perf": 0.9831,
+          "recovery": 0.0,
+          "correct": true
+        },
+        {
+          "layer": 24,
+          "perf": 0.9831,
+          "recovery": 0.0,
+          "correct": true
+        },
+        {
+          "layer": 26,
+          "perf": 0.9831,
+          "recovery": 0.0,
+          "correct": true
+        }
+      ]
+    },
+    "scibench-diff-9": {
+      "ref": "258.14",
+      "domain": "math",
+      "perf_clean": 0.9704,
+      "perf_corrupt": 0.3874,
+      "peak_layer": 0,
+      "peak_recovery": 1.0258,
+      "corrupt_prompt": "A certain college graduate borrows $zork blork buy a car. The lender charges interest at an annual rate of zork blork%. What monthly payment rate is required to pay off the loan in zork blork?",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.9854,
+          "recovery": 1.0258,
+          "correct": true
+        },
+        {
+          "layer": 2,
+          "perf": 0.9806,
+          "recovery": 1.0175,
+          "correct": true
+        },
+        {
+          "layer": 4,
+          "perf": 0.978,
+          "recovery": 1.0132,
+          "correct": true
+        },
+        {
+          "layer": 6,
+          "perf": 0.888,
+          "recovery": 0.8588,
+          "correct": false
+        },
+        {
+          "layer": 8,
+          "perf": 0.9854,
+          "recovery": 1.0258,
+          "correct": true
+        },
+        {
+          "layer": 10,
+          "perf": 0.9854,
+          "recovery": 1.0258,
+          "correct": true
+        },
+        {
+          "layer": 12,
+          "perf": 0.9854,
+          "recovery": 1.0258,
+          "correct": true
+        },
+        {
+          "layer": 14,
+          "perf": 0.9599,
+          "recovery": 0.9821,
+          "correct": true
+        },
+        {
+          "layer": 16,
+          "perf": 0.9587,
+          "recovery": 0.9799,
+          "correct": true
+        },
+        {
+          "layer": 18,
+          "perf": 0.9587,
+          "recovery": 0.9799,
+          "correct": true
+        },
+        {
+          "layer": 20,
+          "perf": 0.1291,
+          "recovery": -0.443,
+          "correct": false
+        },
+        {
+          "layer": 22,
+          "perf": 0.3874,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.3874,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.3874,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-matter-12": {
+      "ref": "0.5",
+      "domain": "optics",
+      "perf_clean": 1.0,
+      "perf_corrupt": 0.5,
+      "peak_layer": 0,
+      "peak_recovery": 1.0,
+      "corrupt_prompt": "An electron confined to a metallic nanoparticle is modelled as a particle in a one-dimensional box of length $L$. If the electron is in the state $n=zork blork$, calculate the probability of finding it in the following regions: $zork blork \\leq x \\leq \\frac{zork blork}{zork blork} L$.",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 2,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 4,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 6,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 8,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 10,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 12,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 14,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 16,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 18,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 20,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 22,
+          "perf": 0.5,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.5,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.5,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-thermo-12": {
+      "ref": "322",
+      "domain": "thermodynamics",
+      "perf_clean": 0.9916,
+      "perf_corrupt": 0.8411,
+      "peak_layer": 12,
+      "peak_recovery": 1.0246,
+      "corrupt_prompt": "A system consisting of $zork blork$ of liquid water at $zork blork . \\mathrm{K}$ is heated using an immersion heater at a constant pressure of zork blork. If a current of $zork blork$ passes through the $zork blork$ resistor for zork blork .s, what is the final temperature of the water?",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.964,
+          "recovery": 0.8161,
+          "correct": true
+        },
+        {
+          "layer": 2,
+          "perf": 0.9124,
+          "recovery": 0.4736,
+          "correct": false
+        },
+        {
+          "layer": 4,
+          "perf": 0.9317,
+          "recovery": 0.6015,
+          "correct": false
+        },
+        {
+          "layer": 6,
+          "perf": 0.9317,
+          "recovery": 0.6015,
+          "correct": false
+        },
+        {
+          "layer": 8,
+          "perf": 0.9457,
+          "recovery": 0.6944,
+          "correct": false
+        },
+        {
+          "layer": 10,
+          "perf": 0.913,
+          "recovery": 0.4777,
+          "correct": false
+        },
+        {
+          "layer": 12,
+          "perf": 0.9953,
+          "recovery": 1.0246,
+          "correct": true
+        },
+        {
+          "layer": 14,
+          "perf": 0.913,
+          "recovery": 0.4777,
+          "correct": false
+        },
+        {
+          "layer": 16,
+          "perf": 0.9488,
+          "recovery": 0.715,
+          "correct": false
+        },
+        {
+          "layer": 18,
+          "perf": 0.9317,
+          "recovery": 0.6015,
+          "correct": false
+        },
+        {
+          "layer": 20,
+          "perf": 0.9317,
+          "recovery": 0.6015,
+          "correct": false
+        },
+        {
+          "layer": 22,
+          "perf": 0.9317,
+          "recovery": 0.6015,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.9317,
+          "recovery": 0.6015,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.9317,
+          "recovery": 0.6015,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-fund-13": {
+      "ref": "2.6",
+      "domain": "general",
+      "perf_clean": 0.9731,
+      "perf_corrupt": 0.0,
+      "peak_layer": 0,
+      "peak_recovery": 0.6324,
+      "corrupt_prompt": "Assume that a honeybee is a sphere of diameter zork blork $\\mathrm{cm}$ with a charge of $+zork blork$ uniformly spread over its surface. Assume also that a spherical pollen grain of diameter $zork blork \\mu \\mathrm{m}$ is electrically held on the surface of the bee because the bee's charge induces a charge of $zork blork$ on the near side of the grain and a charge of $+zork blork$ on the far side. What is the magnitude of the net electrostatic force on the grain due to the bee?",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.6154,
+          "recovery": 0.6324,
+          "correct": false
+        },
+        {
+          "layer": 2,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 4,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 6,
+          "perf": 0.3846,
+          "recovery": 0.3953,
+          "correct": false
+        },
+        {
+          "layer": 8,
+          "perf": 0.3846,
+          "recovery": 0.3953,
+          "correct": false
+        },
+        {
+          "layer": 10,
+          "perf": 0.5385,
+          "recovery": 0.5534,
+          "correct": false
+        },
+        {
+          "layer": 12,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 14,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 16,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 18,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 20,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 22,
+          "perf": 0.0018,
+          "recovery": 0.0018,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-quan-17": {
+      "ref": "0.000216",
+      "domain": "quantum",
+      "perf_clean": 1.0,
+      "perf_corrupt": 0.0,
+      "peak_layer": 0,
+      "peak_recovery": 1.0,
+      "corrupt_prompt": "A one-particle, one-dimensional system has the state function\r\n$$\r\n\\Psi=(\\sin a t)\\left(zork blork / \\pi c^zork blork\\right)^{zork blork / zork blork} e^{-x^zork blork+(\\cos a t)\\left(zork blork / \\pi c^zork blork\\right)^{zork blork / zork blork} x e^{-x^zork blork\r\n$$\r\nwhere $a$ is a constant and $c=zork blork Å$. If the particle's position is measured at $t=zork blork$, estimate the probability that the result will lie between $zork blork Å$ and $zork blork Å$.",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 2,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 4,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 6,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 8,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 10,
+          "perf": 1.0,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 12,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 14,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 16,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 18,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 20,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 22,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-diff-18": {
+      "ref": "89,034.79",
+      "domain": "math",
+      "perf_clean": 0.9501,
+      "perf_corrupt": 0.0,
+      "peak_layer": 4,
+      "peak_recovery": 1.0312,
+      "corrupt_prompt": "A home buyer can afford to spend no more than $\\$ zork blork$ /month on mortgage payments. Suppose that the interest rate is $zork blork \\%$ and that the term of the mortgage is zork blork. Assume that interest is compounded continuously and that payments are also made continuously.\r\nDetermine the maximum amount that this buyer can afford to borrow.",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.962,
+          "recovery": 1.0125,
+          "correct": true
+        },
+        {
+          "layer": 2,
+          "perf": 0.962,
+          "recovery": 1.0125,
+          "correct": true
+        },
+        {
+          "layer": 4,
+          "perf": 0.9798,
+          "recovery": 1.0312,
+          "correct": true
+        },
+        {
+          "layer": 6,
+          "perf": 0.9618,
+          "recovery": 1.0123,
+          "correct": true
+        },
+        {
+          "layer": 8,
+          "perf": 0.9618,
+          "recovery": 1.0123,
+          "correct": true
+        },
+        {
+          "layer": 10,
+          "perf": 0.9618,
+          "recovery": 1.0123,
+          "correct": true
+        },
+        {
+          "layer": 12,
+          "perf": 0.9618,
+          "recovery": 1.0123,
+          "correct": true
+        },
+        {
+          "layer": 14,
+          "perf": 0.6134,
+          "recovery": 0.6456,
+          "correct": false
+        },
+        {
+          "layer": 16,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 18,
+          "perf": 0.5123,
+          "recovery": 0.5392,
+          "correct": false
+        },
+        {
+          "layer": 20,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 22,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-thermo-19": {
+      "ref": "1.33",
+      "domain": "thermodynamics",
+      "perf_clean": 0.9699,
+      "perf_corrupt": 0.4962,
+      "peak_layer": 22,
+      "peak_recovery": 0.5397,
+      "corrupt_prompt": "The thermal conductivities of acetylene $\\left(\\mathrm{C}_zork blork_zork blork\\right)$ and $\\mathrm{N}_zork blork$ at $zork blork$ and $zork blork$ are zork blork $zork blork \\mathrm{~K}^{zork blork} \\mathrm{~m}^{zork blork} \\mathrm{~s}^{zork blork}$, respectively. Based on these data, what is the ratio of the collisional cross section of acetylene relative to $\\mathrm{N}_zork blork$ ?",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.5842,
+          "recovery": 0.1857,
+          "correct": false
+        },
+        {
+          "layer": 2,
+          "perf": 0.5872,
+          "recovery": 0.1921,
+          "correct": false
+        },
+        {
+          "layer": 4,
+          "perf": 0.5812,
+          "recovery": 0.1794,
+          "correct": false
+        },
+        {
+          "layer": 6,
+          "perf": 0.5639,
+          "recovery": 0.1429,
+          "correct": false
+        },
+        {
+          "layer": 8,
+          "perf": 0.5812,
+          "recovery": 0.1794,
+          "correct": false
+        },
+        {
+          "layer": 10,
+          "perf": 0.5835,
+          "recovery": 0.1841,
+          "correct": false
+        },
+        {
+          "layer": 12,
+          "perf": 0.5782,
+          "recovery": 0.173,
+          "correct": false
+        },
+        {
+          "layer": 14,
+          "perf": 0.5827,
+          "recovery": 0.1825,
+          "correct": false
+        },
+        {
+          "layer": 16,
+          "perf": 0.5876,
+          "recovery": 0.193,
+          "correct": false
+        },
+        {
+          "layer": 18,
+          "perf": 0.5889,
+          "recovery": 0.1957,
+          "correct": false
+        },
+        {
+          "layer": 20,
+          "perf": 0.7049,
+          "recovery": 0.4405,
+          "correct": false
+        },
+        {
+          "layer": 22,
+          "perf": 0.7519,
+          "recovery": 0.5397,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.4962,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.4962,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    },
+    "scibench-thermo-21": {
+      "ref": "1.95",
+      "domain": "thermodynamics",
+      "perf_clean": 0.9621,
+      "perf_corrupt": 0.0,
+      "peak_layer": 2,
+      "peak_recovery": 1.0,
+      "corrupt_prompt": "Autoclaves that are used to sterilize surgical tools require a temperature of $zork blork .{ }^{\\circ} \\mathrm{C}$ to kill some bacteria. If water is used for this purpose, at what pressure must the autoclave operate?",
+      "curve": [
+        {
+          "layer": 0,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 2,
+          "perf": 0.9621,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 4,
+          "perf": 0.9621,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 6,
+          "perf": 0.9621,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 8,
+          "perf": 0.9621,
+          "recovery": 1.0,
+          "correct": true
+        },
+        {
+          "layer": 10,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 12,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 14,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 16,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 18,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 20,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 22,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 24,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        },
+        {
+          "layer": 26,
+          "perf": 0.0,
+          "recovery": 0.0,
+          "correct": false
+        }
+      ]
+    }
+  }
+}

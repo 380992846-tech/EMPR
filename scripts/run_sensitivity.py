@@ -569,7 +569,7 @@ def _run_with_model(model, rows, variants, gen, mode, seed, save, meta_extra=Non
                   f"McNemar p={p_txt})")
 
         if save:
-            f = out_dir / f"sensitivity_{vname}_{model.replace('/', '__')}.json"
+            f = out_dir / f"sensitivity_{vname}_{meta_mod.model_slug(model)}.json"
             write_json(f, {"model": model, "variant": vname, "mode": mode,
                            "n": len(v_rows), **rep, "items": items})
             print(f"[save] {f}")
@@ -583,7 +583,7 @@ def _run_with_model(model, rows, variants, gen, mode, seed, save, meta_extra=Non
 
 def _save_summary(summary, model, out_dir=None):
     out_dir = Path(out_dir) if out_dir else RESULTS
-    f = out_dir / f"sensitivity_summary_{model.replace('/', '__')}.json"
+    f = out_dir / f"sensitivity_summary_{meta_mod.model_slug(model)}.json"
     write_json(f, summary)
     print(f"[save] {f}")
 

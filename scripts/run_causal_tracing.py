@@ -320,7 +320,7 @@ def main():
         print("[ct] 没有任何有效题目：换更大的模型/更多题数，或先看 clean 是否答得对。")
 
     if args.save:
-        f = Path(args.out_dir) / f"causal_tracing_{benchmark}_{model_name.replace('/', '__')}.json"
+        f = Path(args.out_dir) / f"causal_tracing_{benchmark}_{meta_mod.model_slug(model_name)}.json"
         write_json(f, {
             "meta": meta_mod.result_meta(
                 "run_causal_tracing.py", model=model_name, benchmark=benchmark,
@@ -359,7 +359,7 @@ def main():
             ax.set_title(f"causal tracing - {model_name.split('/')[-1]} "
                          f"({len(all_curves)} problems)")
             ax.legend()
-            out = Path(args.out_dir) / f"causal_tracing_{benchmark}_{model_name.replace('/', '__')}.png"
+            out = Path(args.out_dir) / f"causal_tracing_{benchmark}_{meta_mod.model_slug(model_name)}.png"
             fig.savefig(out, dpi=150, bbox_inches="tight")
             print(f"[plot] {out}")
         except Exception as e:
