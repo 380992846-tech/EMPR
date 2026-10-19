@@ -1,0 +1,102 @@
+{
+  "model": "/root/autodl-tmp/models/Meta-Llama-3.1-8B-Instruct",
+  "mode": "direct",
+  "total_questions": 323,
+  "seed": 42,
+  "variants": {
+    "numeric": {
+      "n_changed": 305,
+      "n_parsed": 303,
+      "n_unparsed": 2,
+      "mean_sensitivity": 19751134.984486792,
+      "median_sensitivity": 0.08181816322314459,
+      "p90_sensitivity": 5.114333251505563,
+      "unchanged_share": 0.42574257425742573,
+      "response_rate": 0.5742574257425743,
+      "accuracy_paired": null
+    },
+    "wording": {
+      "n_changed": 240,
+      "n_parsed": 238,
+      "n_unparsed": 2,
+      "mean_sensitivity": 210866.14071103168,
+      "median_sensitivity": 0.0,
+      "p90_sensitivity": 0.997998403215968,
+      "unchanged_share": 0.7563025210084033,
+      "response_rate": 0.24369747899159666,
+      "accuracy_paired": {
+        "n_paired": 240,
+        "base_acc": 0.0833,
+        "variant_acc": 0.0792,
+        "delta": -0.0042,
+        "mcnemar_p": 1.0
+      }
+    },
+    "swap": {
+      "n_changed": 36,
+      "n_parsed": 36,
+      "n_unparsed": 0,
+      "mean_sensitivity": 0.9589745295929083,
+      "median_sensitivity": 0.3351829149476069,
+      "p90_sensitivity": 1.8287840186172817,
+      "unchanged_share": 0.3611111111111111,
+      "response_rate": 0.6388888888888888,
+      "accuracy_paired": null
+    }
+  },
+  "meta": {
+    "script": "run_sensitivity.py",
+    "created_utc": "2026-10-19T09:40:55Z",
+    "git_commit": "4e184eb+dirty",
+    "env": {
+      "python": "3.12.3",
+      "platform": "Linux-4.19.90-2107.6.0.0192.8.oe1.bclinux.x86_64-x86_64-with-glibc2.35",
+      "cpu_count": 112,
+      "torch": "2.11.0+cu128",
+      "cuda_available": true,
+      "gpu": "NVIDIA A800 80GB PCIe",
+      "gpu_count": 1,
+      "transformers": "5.20.1",
+      "vllm": null
+    },
+    "argv": [
+      "--model",
+      "/root/autodl-tmp/models/Meta-Llama-3.1-8B-Instruct",
+      "--benchmark",
+      "scibench",
+      "--mode",
+      "direct",
+      "--max-problems",
+      "323",
+      "--backend",
+      "transformers",
+      "--device",
+      "cuda",
+      "--max-new-tokens",
+      "64",
+      "--batch-size",
+      "32",
+      "--variants",
+      "numeric,wording,swap",
+      "--save"
+    ],
+    "model": "/root/autodl-tmp/models/Meta-Llama-3.1-8B-Instruct",
+    "benchmark": "scibench",
+    "mode": "direct",
+    "backend": "transformers/cuda",
+    "chat_template": true,
+    "max_new_tokens": 64,
+    "n_problems": 323,
+    "prompt_fingerprint": "8ddbee089897"
+  },
+  "benchmark": "scibench",
+  "max_new_tokens": 64,
+  "data_composition": {
+    "general": 71,
+    "thermodynamics": 66,
+    "mechanics": 56,
+    "math": 50,
+    "optics": 47,
+    "quantum": 33
+  }
+}

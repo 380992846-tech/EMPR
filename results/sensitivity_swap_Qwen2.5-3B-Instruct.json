@@ -1,0 +1,341 @@
+{
+  "model": "/root/autodl-tmp/models/Qwen2.5-3B-Instruct",
+  "variant": "swap",
+  "mode": "direct",
+  "n": 36,
+  "n_changed": 36,
+  "n_parsed": 36,
+  "n_unparsed": 0,
+  "mean_sensitivity": 1634998.567779524,
+  "median_sensitivity": 0.8404201059850315,
+  "p90_sensitivity": 65.24790867714535,
+  "unchanged_share": 0.16666666666666666,
+  "response_rate": 0.8333333333333334,
+  "accuracy_paired": null,
+  "items": [
+    {
+      "id": "scibench-class-0-swap",
+      "base_id": "scibench-class-0",
+      "domain": "mechanics",
+      "question_variant": "An automobile with a mass of $20 \\mathrm{~kg}$, including passengers, settles $1.0 \\mathrm{~cm}$ closer to the road for every additional $100 \\mathrm{~kg}$ of passengers. It is driven with a constant horizontal component of speed $1000 \\mathrm{~km} / \\mathrm{h}$ over a washboard road with sinusoidal bumps. The amplitude and wavelength of the sine curve are $5.0 \\mathrm{~cm}$ and $20 \\mathrm{~cm}$, respectively. The distance between the front and back wheels is $2.4 \\mathrm{~m}$. Find the amplitude of oscillation of the automobile, assuming it moves vertically as an undamped driven harmonic oscillator. Neglect the mass of the wheels and springs and assume that the wheels are always in contact with the road.",
+      "base_pred": 0.24,
+      "variant_pred": 0.25,
+      "sensitivity": 0.04166649305627897
+    },
+    {
+      "id": "scibench-class-6-swap",
+      "base_id": "scibench-class-6",
+      "domain": "mechanics",
+      "question_variant": "A spacecraft of mass $24 \\mathrm{~kg}$ is parked in a circular orbit $200 \\mathrm{~km}$ above Earth's surface. What is the minimum energy required (neglect the fuel mass burned) to place the satellite in a synchronous orbit (i.e., $\\tau=10000 \\mathrm{hr}$ )?",
+      "base_pred": 5760000000.0,
+      "variant_pred": 3750000.0,
+      "sensitivity": 0.9993489583333331
+    },
+    {
+      "id": "scibench-class-9-swap",
+      "base_id": "scibench-class-9",
+      "domain": "mechanics",
+      "question_variant": "A student drops a water-filled balloon from the roof of the tallest building in town trying to hit her roommate on the ground (who is too quick). The first student ducks back but hears the water splash $331 \\mathrm{~s}$ after dropping the balloon. If the speed of sound is $4.021 \\mathrm{~m} / \\mathrm{s}$, find the height of the building, neglecting air resistance.",
+      "base_pred": 59.8,
+      "variant_pred": 7325.25,
+      "sensitivity": 121.4958173662907
+    },
+    {
+      "id": "scibench-class-12-swap",
+      "base_id": "scibench-class-12",
+      "domain": "mechanics",
+      "question_variant": "A child slides a block of mass $4 \\mathrm{~kg}$ along a slick kitchen floor. If the initial speed is 2 $\\mathrm{m} / \\mathrm{s}$ and the block hits a spring with spring constant $6 \\mathrm{~N} / \\mathrm{m}$, what is the maximum compression of the spring?",
+      "base_pred": 1.6,
+      "variant_pred": 0.833,
+      "sensitivity": 0.4793747003908123
+    },
+    {
+      "id": "scibench-class-21-swap",
+      "base_id": "scibench-class-21",
+      "domain": "mechanics",
+      "question_variant": "A gun fires a projectile of mass $140 \\mathrm{~kg}$ of the type to which the curves of Figure 2-3 apply. The muzzle velocity is $10 \\mathrm{~m} / \\mathrm{s}$. Through what angle must the barrel be elevated to hit a target on the same horizontal plane as the gun and $1000 \\mathrm{~m}$ away? Compare the results with those for the case of no retardation.",
+      "base_pred": 1.57,
+      "variant_pred": 1.96,
+      "sensitivity": 0.24840748509077376
+    },
+    {
+      "id": "scibench-class-30-swap",
+      "base_id": "scibench-class-30",
+      "domain": "mechanics",
+      "question_variant": "Astronaut Stumblebum wanders too far away from the space shuttle orbiter while repairing a broken communications satellite. Stumblebum realizes that the orbiter is moving away from him at $100 \\mathrm{~m} / \\mathrm{s}$. Stumblebum and his maneuvering unit have a mass of $3 \\mathrm{~kg}$, including a pressurized tank of mass $10 \\mathrm{~kg}$. The tank includes only $2 \\mathrm{~kg}$ of gas that is used to propel him in space. The gas escapes with a constant velocity of $100 \\mathrm{~m} / \\mathrm{s}$. With what velocity will Stumblebum have to throw the empty tank away to reach the orbiter?",
+      "base_pred": 98.0,
+      "variant_pred": 98.0,
+      "sensitivity": 0.0
+    },
+    {
+      "id": "scibench-class-36-swap",
+      "base_id": "scibench-class-36",
+      "domain": "mechanics",
+      "question_variant": "A new single-stage rocket is developed in the year 2023, having a gas exhaust velocity of $890$ m/s. The total mass of the rocket is $10^5$ kg, with $90$% of its mass being fuel. The fuel burns quickly in $100$ s at a constant rate. For testing purposes, the rocket is launched vertically at rest from Earth's surface. Neglecting air resistance and assuming that the acceleration of gravity is constant, the launched object can reach 3700 km above the surface of Earth. If the object has a radius of $20$ cm and the air resistance is proportional to the square of the object's speed with $c_w = 0.2$, assuming the density of air is constant, the maximum height reached is 4000 km. Now also include the fact that the acceleration of gravity decreases as the object soars above Earth. Find the height reached.",
+      "base_pred": 890.0,
+      "variant_pred": 4000.0,
+      "sensitivity": 3.4943820185456382
+    },
+    {
+      "id": "scibench-class-43-swap",
+      "base_id": "scibench-class-43",
+      "domain": "mechanics",
+      "question_variant": "In a typical model rocket (Estes Alpha III) the Estes C6 solid rocket engine provides a total impulse of $800$ N-s. Assume the total rocket mass at launch is $54$ g and that it has a rocket engine of mass $20$ g that burns evenly for $1.5$ s. The rocket diameter is $24$ mm. Assume a constant burn rate of the propellent mass ($11$ g), a rocket exhaust speed $8.5$ m/s, vertical ascent, and drag coefficient $c_w = 0.75$. Take into account the change of rocket mass with time and omit the effect of gravity. The rocket's speed at burn out is 131 m/s. How far has the rocket traveled at that moment?",
+      "base_pred": 1722.75,
+      "variant_pred": 928.5,
+      "sensitivity": 0.4610361338203244
+    },
+    {
+      "id": "scibench-class-46-swap",
+      "base_id": "scibench-class-46",
+      "domain": "mechanics",
+      "question_variant": "A new single-stage rocket is developed in the year 2023, having a gas exhaust velocity of $0.05$ m/s. The total mass of the rocket is $10^5$ kg, with $90$% of its mass being fuel. The fuel burns quickly in $100$ s at a constant rate. For testing purposes, the rocket is launched vertically at rest from Earth's surface. Neglecting air resistance and assuming that the acceleration of gravity is constant, the launched object can reach 3700 km above the surface of Earth. If the object has a radius of $20$ cm and the air resistance is proportional to the square of the object's speed with $c_w = 0.2$, assuming the density of air is constant, the maximum height reached is 890 km. Including the fact that the acceleration of gravity decreases as the object soars above Earth, the height reached is 950 km. Now add the effects of the decrease in air density with altitude to the calculation. We can very roughly represent the air density by $log_{10}(\\rho) = -4000h + 0.11$ where $\\rho$ is the air density in $kg/m^3$ and $h$ is the altitude above Earth in km. Determine how high the object now goes.",
+      "base_pred": 960.0,
+      "variant_pred": 960.0,
+      "sensitivity": 0.0
+    },
+    {
+      "id": "scibench-class-51-swap",
+      "base_id": "scibench-class-51",
+      "domain": "mechanics",
+      "question_variant": "In a typical model rocket (Estes Alpha III) the Estes C6 solid rocket engine provides a total impulse of $800$ N-s. Assume the total rocket mass at launch is $54$ g and that it has a rocket engine of mass $20$ g that burns evenly for $1.5$ s. The rocket diameter is $24$ mm. Assume a constant burn rate of the propellent mass ($11$ g), a rocket exhaust speed $8.5$ m/s, vertical ascent, and drag coefficient $c_w = 0.75$. Take into account the change of rocket mass with time and omit the effect of gravity. Find the rocket's speed at burn out.",
+      "base_pred": 932.5,
+      "variant_pred": 39.2,
+      "sensitivity": 0.95796246546063
+    },
+    {
+      "id": "scibench-diff-6-swap",
+      "base_id": "scibench-diff-6",
+      "domain": "math",
+      "question_variant": "A mass weighing $6 \\mathrm{lb}$ stretches a spring 2 in. If the mass is pulled down an additional 3 in. and then released, and if there is no damping, by determining the position $u$ of the mass at any time $t$, find the frequency of the motion",
+      "base_pred": 12.566,
+      "variant_pred": 2.0,
+      "sensitivity": 0.8408402959700545
+    },
+    {
+      "id": "scibench-diff-17-swap",
+      "base_id": "scibench-diff-17",
+      "domain": "math",
+      "question_variant": "A mass of $10 \\mathrm{~kg}$ is dropped from rest in a medium offering a resistance of $0.2|v|$, where $v$ is measured in $\\mathrm{m} / \\mathrm{s}$.\r\nIf the mass is to attain a velocity of no more than $0.25 \\mathrm{~m} / \\mathrm{s}$, find the maximum height from which it can be dropped.",
+      "base_pred": 25.0,
+      "variant_pred": 1.25,
+      "sensitivity": 0.9499999620000015
+    },
+    {
+      "id": "scibench-diff-29-swap",
+      "base_id": "scibench-diff-29",
+      "domain": "math",
+      "question_variant": "A tank originally contains $10 \\mathrm{gal}$ of fresh water. Then water containing $\\frac{1}{2} \\mathrm{lb}$ of salt per gallon is poured into the tank at a rate of $2 \\mathrm{gal} / \\mathrm{min}$, and the mixture is allowed to leave at the same rate. After $100 \\mathrm{~min}$ the process is stopped, and fresh water is poured into the tank at a rate of $2 \\mathrm{gal} / \\mathrm{min}$, with the mixture again leaving at the same rate. Find the amount of salt in the tank at the end of an additional $10 \\mathrm{~min}$.",
+      "base_pred": 10.0,
+      "variant_pred": 1.6,
+      "sensitivity": 0.8399999160000085
+    },
+    {
+      "id": "scibench-diff-39-swap",
+      "base_id": "scibench-diff-39",
+      "domain": "math",
+      "question_variant": "Find the fundamental period of the given function:\r\n$$f(x)=\\left\\{\\begin{array}{ll}(-1)^n, & 0 n-1 \\leq x<2 n, \\\\ 1, & 2 n \\leq x<2 n+1 ;\\end{array} \\quad n=2, \\pm 1, \\pm 2, \\ldots\\right.$$",
+      "base_pred": 4.0,
+      "variant_pred": 4.0,
+      "sensitivity": 0.0
+    },
+    {
+      "id": "scibench-diff-42-swap",
+      "base_id": "scibench-diff-42",
+      "domain": "math",
+      "question_variant": "Let a metallic rod $30 \\mathrm{~cm}$ long be heated to a uniform temperature of $100^{\\circ} \\mathrm{C}$. Suppose that at $t=0$ the ends of the bar are plunged into an ice bath at $0^{\\circ} \\mathrm{C}$, and thereafter maintained at this temperature, but that no heat is allowed to escape through the lateral surface. Determine the temperature at the center of the bar at time $t=20 \\mathrm{~s}$ if the bar is made of silver.",
+      "base_pred": 40.5,
+      "variant_pred": 40.5,
+      "sensitivity": 0.0
+    },
+    {
+      "id": "scibench-diff-45-swap",
+      "base_id": "scibench-diff-45",
+      "domain": "math",
+      "question_variant": "A mass weighing $1.5 \\mathrm{lb}$ stretches a spring 8 in. The mass is also attached to a damper with coefficient $\\gamma$. Determine the value of $\\gamma$ for which the system is critically damped; be sure to give the units for $\\gamma$",
+      "base_pred": 12.0,
+      "variant_pred": 24.0,
+      "sensitivity": 0.9999999166666736
+    },
+    {
+      "id": "scibench-diff-47-swap",
+      "base_id": "scibench-diff-47",
+      "domain": "math",
+      "question_variant": "For small, slowly falling objects, the assumption made in the text that the drag force is proportional to the velocity is a good one. For larger, more rapidly falling objects, it is more accurate to assume that the drag force is proportional to the square of the velocity.  If m = 49 kg, find the drag coefficient so that the limiting velocity is 10 m/s.",
+      "base_pred": 0.1,
+      "variant_pred": 0.2857,
+      "sensitivity": 1.8569814301856982
+    },
+    {
+      "id": "scibench-fund-3-swap",
+      "base_id": "scibench-fund-3",
+      "domain": "general",
+      "question_variant": "You drive a beat-up pickup truck along a straight road for $30 \\mathrm{~km}$ at $70 \\mathrm{~km} / \\mathrm{h}$, at which point the truck runs out of gasoline and stops. Over the next $8.4 \\mathrm{~min}$, you walk another $2.0 \\mathrm{~km}$ farther along the road to a gasoline station.\r\nWhat is your overall displacement from the beginning of your drive to your arrival at the station?",
+      "base_pred": 10.4,
+      "variant_pred": 2.0,
+      "sensitivity": 0.8076922300295933
+    },
+    {
+      "id": "scibench-fund-6-swap",
+      "base_id": "scibench-fund-6",
+      "domain": "general",
+      "question_variant": "During a storm, a crate of crepe is sliding across a slick, oily parking lot through a displacement $\\vec{d}=(-3.0 \\mathrm{~m}) \\hat{\\mathrm{i}}$ while a steady wind pushes against the crate with a force $\\vec{F}=(10 \\mathrm{~N}) \\hat{\\mathrm{i}}+(-6.0 \\mathrm{~N}) \\hat{\\mathrm{j}}$. If the crate has a kinetic energy of $2.0 \\mathrm{~J}$ at the beginning of displacement $\\vec{d}$, what is its kinetic energy at the end of $\\vec{d}$ ?",
+      "base_pred": 10.0,
+      "variant_pred": 2.0,
+      "sensitivity": 0.7999999200000081
+    },
+    {
+      "id": "scibench-fund-39-swap",
+      "base_id": "scibench-fund-39",
+      "domain": "general",
+      "question_variant": "Two identical conducting spheres, fixed in place, attract each other with an electrostatic force of $50.0 \\mathrm{~N}$ when their center-to-center separation is $0.108 \\mathrm{~cm}$. The spheres are then connected by a thin conducting wire. When the wire is removed, the spheres repel each other with an electrostatic force of $0.0360 \\mathrm{~N}$. Of the initial charges on the spheres, with a positive net charge, what was the negative charge on one of them?",
+      "base_pred": 2.4e-06,
+      "variant_pred": 200.0,
+      "sensitivity": 58823528.70588236
+    },
+    {
+      "id": "scibench-matter-1-swap",
+      "base_id": "scibench-matter-1",
+      "domain": "optics",
+      "question_variant": "A chemical reaction takes place in a container of cross-sectional area $50 \\mathrm{~cm}^2$. As a result of the reaction, a piston is pushed out through $1.0 \\mathrm{~cm}$ against an external pressure of $15 \\mathrm{~atm}$. Calculate the work done by the system.",
+      "base_pred": 750.0,
+      "variant_pred": 7500.0,
+      "sensitivity": 8.999999988
+    },
+    {
+      "id": "scibench-matter-16-swap",
+      "base_id": "scibench-matter-16",
+      "domain": "optics",
+      "question_variant": "In an industrial process, nitrogen is heated to $500 \\mathrm{~K}$ at a constant volume of $1.000 \\mathrm{~m}^3$. The gas enters the container at $300 \\mathrm{~K}$ and $92.4 \\mathrm{~atm}$. The mass of the gas is $100 \\mathrm{~kg}$. Use the van der Waals equation to determine the approximate pressure of the gas at its working temperature of $500 \\mathrm{~K}$. For nitrogen, $a=1.39 \\mathrm{dm}^6 \\mathrm{~atm} \\mathrm{~mol}^{-2}, b=0.0391 \\mathrm{dm}^3 \\mathrm{~mol}^{-1}$.",
+      "base_pred": 107.8,
+      "variant_pred": 97.8,
+      "sensitivity": 0.09276437761814121
+    },
+    {
+      "id": "scibench-matter-18-swap",
+      "base_id": "scibench-matter-18",
+      "domain": "optics",
+      "question_variant": "Suppose that the junction between two semiconductors can be represented by a barrier of height $100 \\mathrm{eV}$ and length $2.0 \\mathrm{pm}$. Calculate the transmission probability of an electron with energy $1.5 \\mathrm{eV}$.",
+      "base_pred": 0.00036,
+      "variant_pred": 1.38e-05,
+      "sensitivity": 0.9590027700831024
+    },
+    {
+      "id": "scibench-matter-28-swap",
+      "base_id": "scibench-matter-28",
+      "domain": "optics",
+      "question_variant": "An effusion cell has a circular hole of diameter $1.00 \\mathrm{~mm}$. If the molar mass of the solid in the cell is $300 \\mathrm{~g} \\mathrm{~mol}^{-1}$ and its vapour pressure is $0.735 \\mathrm{~Pa}$ at $500 \\mathrm{~K}$, by how much will the mass of the solid decrease in a period of $1.50 \\mathrm{~h}$ ?",
+      "base_pred": 0.000243,
+      "variant_pred": 0.000245,
+      "sensitivity": 0.008196721311475388
+    },
+    {
+      "id": "scibench-matter-39-swap",
+      "base_id": "scibench-matter-39",
+      "domain": "optics",
+      "question_variant": "J.G. Dojahn, et al. (J. Phys. Chem. 100, 9649 (1996)) characterized the potential energy curves of the ground and electronic states of homonuclear diatomic halogen anions. The ground state of $\\mathrm{F}_2^{-}$ is ${ }^2 \\sum_{\\mathrm{u}}^{+}$ with a fundamental vibrational wavenumber of $450.0 \\mathrm{~cm}^{-1}$ and equilibrium internuclear distance of $1.702 \\mathrm{pm}$. The first two excited states are at 1.609 and $190.0 \\mathrm{eV}$ above the ground state. Compute the standard molar entropy of $\\mathrm{F}_2^{-}$ at $ 298 \\mathrm{~K}$.",
+      "base_pred": 133.4,
+      "variant_pred": 234.8,
+      "sensitivity": 0.7601199343319346
+    },
+    {
+      "id": "scibench-matter-45-swap",
+      "base_id": "scibench-matter-45",
+      "domain": "optics",
+      "question_variant": "At $300 \\mathrm{~K}$ and $8.2 \\mathrm{~atm}$, the compression factor of a gas is 0.86 . Calculate the volume occupied by $20 \\mathrm{mmol}$ of the gas under these conditions.",
+      "base_pred": 15.3,
+      "variant_pred": 15.3,
+      "sensitivity": 0.0
+    },
+    {
+      "id": "scibench-quan-1-swap",
+      "base_id": "scibench-quan-1",
+      "domain": "quantum",
+      "question_variant": "Calculate the energy of one mole of UV photons of wavelength $400 \\mathrm{~nm}$ and compare it with a typical single-bond energy of $300 \\mathrm{~kJ} / \\mathrm{mol}$.",
+      "base_pred": 3.64,
+      "variant_pred": 124000.0,
+      "sensitivity": 34064.924707438266
+    },
+    {
+      "id": "scibench-quan-27-swap",
+      "base_id": "scibench-quan-27",
+      "domain": "quantum",
+      "question_variant": "For the $\\mathrm{H}_2$ ground electronic state, $D_0=2 \\mathrm{eV}$. Find $\\Delta H_0^{\\circ}$ for $\\mathrm{H}_2(g) \\rightarrow 4.4781 \\mathrm{H}(g)$ in $\\mathrm{kJ} / \\mathrm{mol}$",
+      "base_pred": 89.56,
+      "variant_pred": 359.8,
+      "sensitivity": 3.017418456705913
+    },
+    {
+      "id": "scibench-thermo-2-swap",
+      "base_id": "scibench-thermo-2",
+      "domain": "thermodynamics",
+      "question_variant": "Approximately how many oxygen molecules arrive each second at the mitochondrion of an active person with a mass of $1.00 \\mathrm{~kg}$ ? The following data are available: Oxygen consumption is about $40 . \\mathrm{mL}$ of $\\mathrm{O}_2$ per minute per kilogram of body weight, measured at $T=300 . \\mathrm{K}$ and $P=84 \\mathrm{~atm}$. In an adult there are about $1.6 \\times 10^{10}$ cells per kg body mass. Each cell contains about 800 . mitochondria.",
+      "base_pred": 1.92e+20,
+      "variant_pred": 1.92e+17,
+      "sensitivity": 0.999
+    },
+    {
+      "id": "scibench-thermo-10-swap",
+      "base_id": "scibench-thermo-10",
+      "domain": "thermodynamics",
+      "question_variant": "How long will it take to pass $200 . \\mathrm{mL}$ of $\\mathrm{H}_2$ at $273 \\mathrm{~K}$ through a $10 . \\mathrm{cm}$-long capillary tube of $1.00 \\mathrm{~mm}$ if the gas input and output pressures are 1.05 and $0.25 \\mathrm{~atm}$, respectively?",
+      "base_pred": 480.0,
+      "variant_pred": 1200.0,
+      "sensitivity": 1.499999996875
+    },
+    {
+      "id": "scibench-thermo-12-swap",
+      "base_id": "scibench-thermo-12",
+      "domain": "thermodynamics",
+      "question_variant": "A system consisting of $82.5 \\mathrm{~g}$ of liquid water at $300 . \\mathrm{K}$ is heated using an immersion heater at a constant pressure of 25.0 bar. If a current of $1.75 \\mathrm{~A}$ passes through the $1.00 \\mathrm{ohm}$ resistor for 100 .s, what is the final temperature of the water?",
+      "base_pred": 346.5,
+      "variant_pred": 346.5,
+      "sensitivity": 0.0
+    },
+    {
+      "id": "scibench-thermo-16-swap",
+      "base_id": "scibench-thermo-16",
+      "domain": "thermodynamics",
+      "question_variant": "One liter of fully oxygenated blood can carry 0.18 liters of $\\mathrm{O}_2$ measured at $T=298 \\mathrm{~K}$ and $P=1.0 \\mathrm{~atm}$. Calculate the number of moles of $\\mathrm{O}_2$ carried per liter of blood. Hemoglobin, the oxygen transport protein in blood has four oxygen binding sites. How many hemoglobin molecules are required to transport the $\\mathrm{O}_2$ in $1.00 \\mathrm{~L}$ of fully oxygenated blood?",
+      "base_pred": 0.03,
+      "variant_pred": 0.045,
+      "sensitivity": 0.49998333388887034
+    },
+    {
+      "id": "scibench-thermo-42-swap",
+      "base_id": "scibench-thermo-42",
+      "domain": "thermodynamics",
+      "question_variant": "A hiker caught in a thunderstorm loses heat when her clothing becomes wet. She is packing emergency rations that if completely metabolized will release $51 \\mathrm{~kJ}$ of heat per gram of rations consumed. How much rations must the hiker consume to avoid a reduction in body temperature of $2.5 \\mathrm{~K}$ as a result of heat loss? Assume the heat capacity of the body equals that of water and that the hiker weighs $35 \\mathrm{~kg}$.",
+      "base_pred": 45.45,
+      "variant_pred": 42.3,
+      "sensitivity": 0.0693069291681645
+    },
+    {
+      "id": "scibench-thermo-44-swap",
+      "base_id": "scibench-thermo-44",
+      "domain": "thermodynamics",
+      "question_variant": "Calculate $\\Delta G$ for the isothermal expansion of $2.5 \\mathrm{~mol}$ of an ideal gas at $325 \\mathrm{~K}$ from an initial pressure of 12.0 bar to a final pressure of 2.25 bar.",
+      "base_pred": -1440000.0,
+      "variant_pred": -147000.0,
+      "sensitivity": 0.8979166666660431
+    },
+    {
+      "id": "scibench-thermo-51-swap",
+      "base_id": "scibench-thermo-51",
+      "domain": "thermodynamics",
+      "question_variant": "The half-life of ${ }^{238} \\mathrm{U}$ is $4.5 \\times 10^9$ years. How many disintegrations occur in $10 \\mathrm{~min}$ for a $1 \\mathrm{mg}$ sample of this element?",
+      "base_pred": 76.2,
+      "variant_pred": 167772.0,
+      "sensitivity": 2200.732254583566
+    },
+    {
+      "id": "scibench-thermo-64-swap",
+      "base_id": "scibench-thermo-64",
+      "domain": "thermodynamics",
+      "question_variant": "The half-cell potential for the reaction $\\mathrm{O}_2(g)+4 \\mathrm{H}^{+}(a q)+4 \\mathrm{e}^{-} \\rightarrow 1.03 \\mathrm{H}_2 \\mathrm{O}(l)$ is $+2 \\mathrm{~V}$ at $298.15 \\mathrm{~K}$ when $a_{\\mathrm{O}_2}=1.00$. Determine $a_{\\mathrm{H}^{+}}$",
+      "base_pred": 10000000000.0,
+      "variant_pred": 10.0,
+      "sensitivity": 0.9999999989999998
+    }
+  ]
+}

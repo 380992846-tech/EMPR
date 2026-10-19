@@ -1,0 +1,102 @@
+{
+  "model": "/root/autodl-tmp/models/Qwen2.5-3B-Instruct",
+  "mode": "direct",
+  "total_questions": 323,
+  "seed": 42,
+  "variants": {
+    "numeric": {
+      "n_changed": 305,
+      "n_parsed": 305,
+      "n_unparsed": 0,
+      "mean_sensitivity": 9940671433469.812,
+      "median_sensitivity": 0.499999950000005,
+      "p90_sensitivity": 6.3237364577435615,
+      "unchanged_share": 0.22950819672131148,
+      "response_rate": 0.7704918032786885,
+      "accuracy_paired": null
+    },
+    "wording": {
+      "n_changed": 240,
+      "n_parsed": 240,
+      "n_unparsed": 0,
+      "mean_sensitivity": 28.135476499482746,
+      "median_sensitivity": 0.0,
+      "p90_sensitivity": 0.9101320244571048,
+      "unchanged_share": 0.6625,
+      "response_rate": 0.3375,
+      "accuracy_paired": {
+        "n_paired": 240,
+        "base_acc": 0.0542,
+        "variant_acc": 0.0542,
+        "delta": 0.0,
+        "mcnemar_p": 0.7518296340458492
+      }
+    },
+    "swap": {
+      "n_changed": 36,
+      "n_parsed": 36,
+      "n_unparsed": 0,
+      "mean_sensitivity": 1634998.567779524,
+      "median_sensitivity": 0.8404201059850315,
+      "p90_sensitivity": 65.24790867714535,
+      "unchanged_share": 0.16666666666666666,
+      "response_rate": 0.8333333333333334,
+      "accuracy_paired": null
+    }
+  },
+  "meta": {
+    "script": "run_sensitivity.py",
+    "created_utc": "2026-10-19T10:05:42Z",
+    "git_commit": "4e184eb+dirty",
+    "env": {
+      "python": "3.12.3",
+      "platform": "Linux-4.19.90-2107.6.0.0192.8.oe1.bclinux.x86_64-x86_64-with-glibc2.35",
+      "cpu_count": 112,
+      "torch": "2.11.0+cu128",
+      "cuda_available": true,
+      "gpu": "NVIDIA A800 80GB PCIe",
+      "gpu_count": 1,
+      "transformers": "5.20.1",
+      "vllm": null
+    },
+    "argv": [
+      "--model",
+      "/root/autodl-tmp/models/Qwen2.5-3B-Instruct",
+      "--benchmark",
+      "scibench",
+      "--mode",
+      "direct",
+      "--max-problems",
+      "323",
+      "--backend",
+      "transformers",
+      "--device",
+      "cuda",
+      "--max-new-tokens",
+      "64",
+      "--batch-size",
+      "48",
+      "--variants",
+      "numeric,wording,swap",
+      "--save"
+    ],
+    "model": "/root/autodl-tmp/models/Qwen2.5-3B-Instruct",
+    "benchmark": "scibench",
+    "mode": "direct",
+    "backend": "transformers/cuda",
+    "chat_template": true,
+    "max_new_tokens": 64,
+    "n_problems": 323,
+    "prompt_fingerprint": "8ddbee089897"
+  },
+  "benchmark": "scibench",
+  "max_new_tokens": 64,
+  "data_composition": {
+    "general": 71,
+    "thermodynamics": 66,
+    "mechanics": 56,
+    "math": 50,
+    "optics": 47,
+    "quantum": 33
+  }
+}
