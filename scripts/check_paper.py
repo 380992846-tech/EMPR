@@ -101,6 +101,26 @@ def main() -> int:
         if b or stack or bad or ph:
             problems.append(f"[struct] {Path(f).name}: braces {b:+d} unclosed {stack} bad {bad} ph {len(ph)}")
 
+    # 6) 手抄样本量检测：main.tex 里出现 >=100 的裸整数（年份、重采样次数、代码名除外）
+    #    这一类数字必须走 numbers.tex 的宏，否则会与 results/ 脱节（审稿意见 M-A 的教训）。
+    allowed_nums = {"10000"}
+    suspicious = []
+    for line in main_src.splitlines():
+        if any(tok in line for tok in ("\\begin{verbatim}", "\\texttt", "\\citep", "\\citet",
+                                        "\\includegraphics", "\\label", "\\ref")):
+            continue
+        for m in re.finditer(r"(?<![\w{.\-])(\d{3,5})(?![\w}\-])", line):
+            num = m.group(1)
+            rest = line[m.end():m.end() + 2]
+            if rest.startswith("\\%") or rest.startswith("%"):
+                continue  # 百分比，不是样本量
+            if num in allowed_nums or 1900 <= int(num) <= 2100:
+                continue
+            suspicious.append(f"{num} :: {line.strip()[:90]}")
+    if suspicious:
+        problems.append("[handcopy] main.tex 出现疑似手抄的大整数（应改用 numbers.tex 的宏）:\n        "
+                        + "\n        ".join(suspicious[:8]))
+
     print()
     if problems:
         for p in problems:

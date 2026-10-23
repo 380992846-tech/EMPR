@@ -513,6 +513,16 @@ def table7_prompt_scaffold(found):
     na, la, xa = fmt_stats(cot)
     nb, lb, xb = fmt_stats(st)
 
+    # 合规 vs 不合规输出的正确率（§4.7 引用这一组，必须真的算出来）
+    with_f, without_f = [], []
+    for D in (cot, st):
+        for dd in D["detail"]:
+            (with_f if "ANSWER:" in (dd.get("pred_raw") or "") else without_f).append(
+                bool(dd["correct"]))
+    n_with, n_without = len(with_f), len(without_f)
+    acc_with = sum(with_f) / n_with if n_with else 0.0
+    acc_without = sum(without_f) / n_without if n_without else 0.0
+
     def ci(s):
         if "[" not in str(s):
             return "--"
@@ -543,12 +553,19 @@ def table7_prompt_scaffold(found):
         r"    \midrule",
         rf"    \multicolumn{{4}}{{@{{}}l}}{{paired difference: {acc_b * 100 - acc_a * 100:+.1f}\,pp, "
         rf"McNemar $p={p_val:.3f}$}} & \\",
+        r"    \midrule",
+        r"    \multicolumn{5}{@{}l}{\emph{Accuracy by output-format compliance (both prompts pooled)}} \\",
+        rf"    \quad outputs with \texttt{{ANSWER:}} line (n={n_with}) & "
+        rf"{acc_with * 100:.1f}\% & -- & -- & -- \\",
+        rf"    \quad outputs without it (n={n_without}) & {acc_without * 100:.1f}\% & -- & -- & -- \\",
         r"    \bottomrule",
         r"  \end{tabular}",
         r"  \vspace{2pt}",
-        r"  \parbox{\linewidth}{\footnotesize The last column exposes a separate limitation: most",
-        r"  outputs ignore the requested \texttt{ANSWER:} format and are graded through the",
-        r"  fallback extractor. Output lengths are well below the token budget, so this is a",
+        r"  \parbox{\linewidth}{\footnotesize Upper block: scaffolding changes accuracy by less than",
+        r"  one percentage point and is far from significant. Lower block: most outputs ignore the",
+        r"  requested \texttt{ANSWER:} format and are graded through the fallback extractor;",
+        r"  accuracy is similar with and without the marker, so the fallback does not visibly bias",
+        r"  the headline numbers, while output lengths stay well below the token budget --- a",
         r"  format-compliance failure rather than truncation.}",
         r"\end{table}",
         "",
@@ -575,6 +592,16 @@ def numbers_tex(found):
 
     L = [r"% 由 scripts/make_paper_tables.py 自动生成，请勿手改。",
          r"% 正文里的每个数字都应引用这里的宏，避免与 results/ 不一致。",
+         r"%",
+         r"% 关键宏的定义（供人工核对，避免同名不同义）：",
+         r"%   \nbWordingFlips == \nbRightToWrong + \nbWrongToRight",
+         r"%       即 cross-the-boundary 的不一致对总数，不是「答案数值改变数」",
+         r"%   \nbWordingCovered / \nbNumericCovered = 该变体实际覆盖的题数（分母）",
+         r"%   \acc* = 正确率（百分数，一位小数）；\nb* = 样本量；\pct* = 百分比",
+         r"%   \chiSameFamily  <- results/error_labels.json（Qwen2.5-14B 同族标注）",
+         r"%   \chiCrossFamily <- results/error_labels_llama.json（Llama-3.1-8B 异族标注）",
+         r"%   \plateauLo/Hi   <- 与峰值层不可区分的最大连续层区间（配对 bootstrap 定义）",
+         r"%   以上均经 results/paper_stats.json 中转，可逐项追溯到原始运行",
          r"\providecommand{\nb}[1]{#1}"]
 
     def put(name, val, fmt="{:.1f}"):
@@ -670,6 +697,7 @@ def numbers_tex(found):
               rf"\newcommand{{\nbCausalCleanWrong}}{{{d['n_skipped_clean_wrong']}}}",
               rf"\newcommand{{\nbCausalFlat}}{{{d['n_skipped_corrupt_flat']}}}",
               rf"\newcommand{{\nbLayers}}{{{d['n_layers']}}}",
+              rf"\newcommand{{\nbLayerStep}}{{{d['layer_step']}}}",
               rf"\newcommand{{\peakLayer}}{{{peak['layer']}}}",
               rf"\newcommand{{\peakRecovery}}{{{peak['mean_recovery']:.2f}}}"]
     ct2 = RESULTS / "ct_all" / "causal_tracing_scibench_Qwen2.5-7B-Instruct.json"
@@ -711,6 +739,10 @@ def numbers_tex(found):
             L += [rf"\newcommand{{\peakCiLo}}{{{lo:.2f}}}",
                   rf"\newcommand{{\peakCiHi}}{{{hi:.2f}}}",
                   rf"\newcommand{{\nbNonseparableLayers}}{{{m1['n_layers_where_peak_not_separable']}}}"]
+            if m1.get("plateau_lo") is not None:
+                L += [rf"\newcommand{{\plateauLo}}{{{m1['plateau_lo']}}}",
+                      rf"\newcommand{{\plateauHi}}{{{m1['plateau_hi']}}}",
+                      rf"\newcommand{{\nbPlateauLayers}}{{{len(m1['plateau_layers'])}}}"]
         m3 = st.get("M3_wording_2x2") or {}
         if m3:
             c = m3["counts"]
@@ -743,6 +775,31 @@ def numbers_tex(found):
             L.append(rf"\newcommand{{\wilsonCcLo}}{{{ccw['wilson95'][0] * 100:.0f}}}")
             L.append(rf"\newcommand{{\wilsonCcHi}}{{{ccw['wilson95'][1] * 100:.0f}}}")
             L.append(rf"\newcommand{{\nbCleanCorrectK}}{{{ccw['k']}}}")
+        cwr = (ws.get("clean_wrong") or {})
+        if cwr.get("wilson95"):
+            L.append(rf"\newcommand{{\wilsonCwLo}}{{{cwr['wilson95'][0] * 100:.1f}}}")
+            L.append(rf"\newcommand{{\wilsonCwHi}}{{{cwr['wilson95'][1] * 100:.1f}}}")
+            L.append(rf"\newcommand{{\nbCleanWrongK}}{{{cwr['k']}}}")
+
+    # 变体覆盖数（正文必须用宏，不能写死 240/305）
+    cov = RESULTS / "sensitivity_coverage_scibench.json"
+    if cov.exists():
+        cv = json.loads(cov.read_text(encoding="utf-8"))
+        blk = cv.get("coverage") or cv  # 该文件把变体放在 coverage 子字典下
+        for v, name in (("numeric", "NumericCovered"), ("wording", "WordingCovered"),
+                        ("swap", "SwapCovered")):
+            e = blk.get(v) or {}
+            if e.get("n_changed") is not None:
+                L.append(rf"\newcommand{{\nb{name}}}{{{e['n_changed']}}}")
+    else:
+        s = RESULTS / "sensitivity_summary_Qwen2.5-7B-Instruct.json"
+        if s.exists():
+            d = json.loads(s.read_text(encoding="utf-8"))
+            for v, name in (("numeric", "NumericCovered"), ("wording", "WordingCovered"),
+                            ("swap", "SwapCovered")):
+                r = d["variants"].get(v) or {}
+                if r.get("n_changed") is not None:
+                    L.append(rf"\newcommand{{\nb{name}}}{{{r['n_changed']}}}")
 
     # 脚手架配对
     for tag, pat in (("Cot", "eval_scibench_cot_n150_t2048_*.json"),

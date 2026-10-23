@@ -175,7 +175,26 @@
         "significant": true
       }
     },
-    "n_layers_where_peak_not_separable": 6
+    "n_layers_where_peak_not_separable": 6,
+    "plateau_layers": [
+      4,
+      6,
+      8,
+      10,
+      12,
+      14
+    ],
+    "plateau_lo": 4,
+    "plateau_hi": 14,
+    "nonseparable_layers": [
+      0,
+      4,
+      6,
+      8,
+      10,
+      12,
+      14
+    ]
   },
   "M3_wording_2x2": {
     "model": "Qwen2.5-7B-Instruct",

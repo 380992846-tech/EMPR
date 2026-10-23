@@ -20,11 +20,16 @@
 \usepackage[margin=1in]{geometry}
 \usepackage[hidelinks]{hyperref}
 \usepackage[numbers,sort&compress]{natbib}
+% MiKTeX 默认用 CM 位图字体；microtype 的字体扩展需要 scalable 字体，故只启用 protrusion
+\usepackage[protrusion=true,expansion=false]{microtype}
 \usepackage{caption}
 \captionsetup{font=small,labelfont=bf}
 \usepackage{titlesec}
 \titlespacing*{\section}{0pt}{1.2ex plus .3ex}{0.6ex}
 \graphicspath{{../results/}{./}}
+
+% 允许额外断行弹性，消除长 \texttt{} 造成的 overfull box
+\emergencystretch=2em
 
 \input{numbers.tex}
 
@@ -55,8 +60,8 @@ is present but execution is not}: the same 7B model answers \accMMLU\% of
 multiple-choice physics items but only \accCotSevenB\% when it must produce the
 number itself. Third, \emph{answers are surface-conditioned}: a paraphrase that
 leaves physics and data bit-identical changes \pctChangedSevenBWording\% of final
-answers in every model we test, yet moves only \nbWordingFlips{} of 240 items
-across the correct/incorrect boundary, so the instability is value-level wandering
+answers in every model we test, yet moves only \nbWordingFlips{} of \nbWordingCovered{}
+items across the correct/incorrect boundary, so the instability is value-level wandering
 rather than a systematic difficulty change.
 Two further probes constrain the mechanism. Corrupt-and-restore causal tracing
 localises recoverable behaviour to an early-middle band (roughly layers 4--16 of
@@ -156,8 +161,9 @@ in open models \citep{meng2022locating,stolfo2023mechanistic}. We use the simple
 variant --- corrupt the input, then restore the clean residual stream at a single
 layer --- because it requires no training and yields a per-layer curve. In
 factual-recall studies the recoverable signal typically sits in the middle of the
-network; our plateau sits \emph{earlier} than the middle band of a
-\nbLayers-layer model, which we discuss in \S\ref{sec:causal}.
+network --- for a \nbLayers-layer model, roughly the central third (layers
+$\sim$9--19); our plateau sits \emph{earlier} than that, which we discuss in
+\S\ref{sec:causal}.
 
 \paragraph{Sensitivity and robustness of LLM answers.}
 Prompt sensitivity is well documented \citep{sclar2023quantifying}, usually as a
@@ -241,7 +247,11 @@ together with the skip counts.
 
 The stages below correspond to the project's Week~1--4 work plan (main table,
 perturbation probes, causal tracing, error attribution), plus two controls added
-during revision.
+during revision. Three of them carry the argument --- \S\ref{sec:main} (prompting vs
+scale), \S\ref{sec:sensitivity} (compute vs retrieve) and \S\ref{sec:cross}
+(knowledge vs execution) --- while \S\ref{sec:causal}, \S\ref{sec:errors},
+\S\ref{sec:scaffold} and \S\ref{sec:format} constrain the mechanism or bound the
+measurement.
 
 \subsection{How large is the prompting effect relative to scale?}
 \label{sec:main}
@@ -250,8 +260,9 @@ both prompting conditions, with bootstrap 95\% confidence intervals.
 
 \input{table1_main.tex}
 
-The effect of prompting exceeds the effect of doubling parameters, though the two
-are measured on different scales (a ratio versus a difference in points): for the
+In this setting the prompting effect is large relative to a doubling of parameters,
+although the two are measured on different scales (a ratio versus a difference in
+points), so the comparison should not be read as a magnitude ranking: for the
 Qwen2.5 family chain-of-thought multiplies accuracy by \ratioThreeB$\times$,
 \ratioSevenB$\times$ and \ratioFourteenB$\times$ at 3B, 7B and 14B, while going
 from 7B to 14B adds \gapFourteenVsSevenCot{} points
@@ -285,24 +296,33 @@ Figure~\ref{fig:sensitivity} visualises the contrast.
   \centering
   \includegraphics[width=.72\linewidth]{sensitivity_comparison.png}
   \caption{Share of final answers that change when physical values are rescaled
-           (\emph{numeric}) versus when only the phrasing is rewritten
-           (\emph{wording}). 305 and 240 items respectively, out of \nbSciBench{}.
-           The paraphrase bar is non-zero for every model, which is the paper's
-           central robustness observation.}
+           (\emph{numeric}, \nbNumericCovered{} items) versus when only the phrasing
+           is rewritten (\emph{wording}, \nbWordingCovered{} items), out of
+           \nbSciBench{}; bars show Wilson 95\% intervals. The paraphrase bar is
+           non-zero for every model --- but \S\ref{sec:sensitivity} shows this is a
+           value-level effect, not a correctness-level one.}
   \label{fig:sensitivity}
 \end{figure}
 
 Crucially, ``changing the answer'' is not the same as ``changing correctness''.
-Table~\ref{tab:wording-2x2} scores the paraphrase variants against the reference
-and reports the paired 2$\times$2 counts: for Qwen2.5-7B only \nbWordingFlips{} of
-240 items cross the correct/incorrect boundary (\nbRightToWrong{} correct
-$\rightarrow$ wrong, \nbWrongToRight{} wrong $\rightarrow$ correct; exact McNemar
-$p=\pWordingExact$), and the pattern is the same for the other three models. We
-therefore state the weaker and better-supported claim: we detect no systematic
-shift in correctness, and the discordant pairs are roughly balanced. The
-paraphrase instability is real, but it is \emph{value-level wandering} rather than
-a systematic loss of competence --- a distinction that a single accuracy number
-hides entirely.
+Table~\ref{tab:wording-2x2} scores the paraphrase variants against the reference and
+reports the paired 2$\times$2 counts. For Qwen2.5-7B the number of \emph{discordant}
+items --- those crossing the correct/incorrect boundary, which is by construction
+\nbRightToWrong{} $+$ \nbWrongToRight{} --- is \nbWordingFlips{} out of
+\nbWordingCovered{}: \nbRightToWrong{} went correct $\rightarrow$ wrong and
+\nbWrongToRight{} went wrong $\to$ correct (exact McNemar $p=\pWordingExact$). The
+pattern is the same for the other three models. We therefore state the weaker and
+better-supported claim: we detect no systematic shift in correctness, and the
+discordant pairs are roughly balanced. The paraphrase instability is real, but it is
+\emph{value-level wandering} rather than a systematic loss of competence --- a
+distinction that a single accuracy number hides entirely.
+
+One caveat on that characterisation: we did not stratify the discordant items by the
+magnitude of the base answer. If they concentrate on near-zero answers --- where the
+sensitivity score is unstable by construction (\S\ref{sec:method}) --- the
+``wandering'' reading would need qualification, since such items are also the ones
+most likely to sit near a grading boundary. We flag this as untested rather than
+assume it away.
 
 \input{table8_wording_2x2.tex}
 
@@ -322,12 +342,21 @@ therefore scoped to solvable problems, not to the benchmark as a whole.
 \paragraph{A band, not a peak.}
 Recovery rises across the early-middle layers and collapses after layer 18
 (Figure~\ref{fig:causal}). The point estimate is maximal at layer \peakLayer{}
-($+\peakRecovery$), but the bootstrap 95\% CI on that mean is
-$[+\peakCiLo, +\peakCiHi]$ and a paired bootstrap over problems cannot separate it
-from \nbNonseparableLayers{} other layers inside the plateau. We therefore claim a
-recoverable \emph{range} (roughly layers 4--16) rather than a single peak layer;
-only layers beyond $\sim$18, and the embedding region (whose variance is an order
-of magnitude larger), are clearly distinguishable.
+($+\peakRecovery$), with a bootstrap 95\% CI on that mean of
+$[+\peakCiLo, +\peakCiHi]$. A paired bootstrap over problems, however, cannot
+separate it from \nbNonseparableLayers{} other layers.
+
+\paragraph{How the band is defined.}
+Rather than reading a range off the curve by eye, we define it formally: the plateau
+is the maximal \emph{contiguous} run of layers whose recovery is not separable from
+the peak under the paired bootstrap. This yields layers \plateauLo--\plateauHi{}
+(\nbPlateauLayers{} sampled layers); the next sampled layer, 16, \emph{is} separable
+from the peak, which is why the band stops there. Because layer sampling is
+quantised (every \nbLayerStep{} layers), the boundaries are accurate to one sampling
+step. We therefore claim a recoverable \emph{band} of layers \plateauLo--\plateauHi{}
+rather than a single peak layer; only layers beyond $\sim$18, and the embedding
+region (whose variance is an order of magnitude larger), are clearly
+distinguishable.
 
 \begin{figure}[t]
   \centering
@@ -341,8 +370,9 @@ of magnitude larger), are clearly distinguishable.
 
 \paragraph{Relation to factual-recall localisation.}
 In factual-recall tracing the recoverable signal typically occupies the middle of
-the network. Our plateau (layers 4--16 of \nbLayers, i.e.\ roughly the first half)
-sits \emph{earlier} than that. Two differences plausibly explain the discrepancy.
+the network (roughly the central third of depth). Our plateau (layers
+\plateauLo--\plateauHi{} of \nbLayers, i.e.\ the first half) sits \emph{earlier}
+than that. Two differences plausibly explain the discrepancy.
 First, our corruption replaces \emph{numerical quantities} with a placeholder,
 whereas factual-recall protocols replace a \emph{named subject}; collapsing the
 numeric input removes information that has to be re-encoded early, so restoration
@@ -364,13 +394,16 @@ Table~\ref{tab:layer-parse-acc} shows the result, split by clean-run correctness
 Parseability is essentially layer-invariant: \pctParseCorrupt\% even for the
 corrupted baseline, and \pctParseMin--\pctParseMax\% at every restore point. The
 model always emits a number; corruption never makes it decline. Correctness, by
-contrast, depends on the restored depth: for the \nbCleanCorrect{} problems the
+contrast, depends on the restored depth. For the \nbCleanCorrect{} problems the
 clean run solves, restoration recovers \nbCleanCorrectK{} of them
-(\pctAccCleanCorrectBest\%, Wilson 95\% CI $[\wilsonCcLo, \wilsonCcHi]$) at the
-best layer --- suggestive but imprecise at this sample size; for the
-\nbCleanWrong{} problems it never exceeds \pctAccCleanWrongBest\% at any layer.
-The two pathways are therefore distinct, and the failures are capability limits
-rather than misplaced representations that a patch could repair.
+(\pctAccCleanCorrectBest\%, Wilson 95\% CI $[\wilsonCcLo, \wilsonCcHi]$) at the best
+layer --- suggestive but imprecise at this sample size. For the \nbCleanWrong{}
+problems the best layer reaches only \nbCleanWrongK{} of \nbCleanWrong{}
+(\pctAccCleanWrongBest\%, Wilson 95\% CI $[\wilsonCwLo, \wilsonCwHi]$), an interval
+whose upper bound is an order of magnitude below the correct-baseline recovery and
+which includes zero at several layers. The two pathways are therefore distinct, and
+the failures are capability limits rather than misplaced representations that a
+patch could repair.
 
 \subsection{Knowledge or execution? A format control}
 \label{sec:cross}
@@ -427,16 +460,18 @@ matched token budget on the same \nbScafCot{} problems it changes accuracy from
 
 \input{table7_prompt_scaffold.tex}
 
-\subsection{An output-format ceiling}
+\subsection{An output-format ceiling (a measurement bound, not a finding)}
 \label{sec:format}
-One limitation deserves separate mention because it caps what any strict-format
-evaluation can see. Between \pctNoAnswerCot\% and \pctNoAnswerStruct\% of outputs
+One measurement limitation deserves separate mention because it caps what any
+strict-format evaluation can see --- it is a bound on our instrument, not a claim
+about model behaviour. Between \pctNoAnswerCot\% and \pctNoAnswerStruct\% of outputs
 never emit the requested \texttt{ANSWER:} line and are graded by the fallback
 extractor (``last number on the last line''). Output lengths stay far below the
-token budget, so this is a format-compliance failure rather than truncation, and
-accuracy is statistically indistinguishable between compliant and non-compliant
-outputs (Table~\ref{tab:scaffold}) --- but an evaluation that insisted on the
-format would report a lower ceiling than ours.
+token budget, so this is a format-compliance failure rather than truncation. The
+lower block of Table~\ref{tab:scaffold} pools both prompts and compares outputs
+with and without the marker: accuracy is similar in the two groups, so the fallback
+does not visibly bias the headline numbers --- but an evaluation that insisted on
+the format would report a lower ceiling than ours.
 
 % ---------------------------------------------------------------- 5 Discussion
 \input{discussion.tex}
@@ -467,10 +502,13 @@ greedy decoding makes accuracies backend-independent.
 The paraphrase probe uses deterministic rule-based rewriting; a model-generated
 paraphrase would be stronger but introduces rewrite quality as a confound. The
 scaffolding probe used one prompt design at one budget, so its null result is
-evidence against that intervention, not proof of impossibility. Finally, all
-models are evaluated zero-shot with a single fixed prompt per condition; prompt
-sensitivity is itself one of the phenomena measured, so no per-model prompt tuning
-is performed.
+evidence against that intervention, not proof of impossibility. Finally, all models
+are evaluated zero-shot with a single fixed prompt per condition, and no per-model
+prompt tuning is performed, because prompt sensitivity is itself one of the
+phenomena measured. Note that the two conditions of the scaffolding comparison are
+\emph{each} a single fixed prompt (standard chain-of-thought and the structured
+variant) evaluated at a matched token budget, so the comparison isolates the
+prompt content rather than the budget.
 
 % ---------------------------------------------------------------- Appendices
 \appendix

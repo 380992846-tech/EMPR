@@ -40,9 +40,9 @@ def prompts_appendix() -> str:
             kind = "multiple-choice" if mcq else "free-response"
             lines += [
                 rf"\paragraph{{{mode.capitalize()} / {kind}}}",
-                r"\begin{verbatim}",
+                r"{\footnotesize\begin{verbatim}  ",
                 text,
-                r"\end{verbatim}",
+                r"\end{verbatim}}",
             ]
     lines += [
         r"\paragraph{Chat template}",

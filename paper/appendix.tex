@@ -8,43 +8,43 @@ options of the form ``A. \dots''. Every template demands the final answer on its
 line prefixed with \texttt{ANSWER:}, which is what the extractor looks for first.
 
 \paragraph{Cot / free-response}
-\begin{verbatim}
+{\footnotesize\begin{verbatim}  
 Solve the following physics problem step by step. Show all work.
 At the end, give the final numeric answer on its own line, prefixed with "ANSWER:".
 Problem: <problem statement>
-\end{verbatim}
+\end{verbatim}}
 \paragraph{Cot / multiple-choice}
-\begin{verbatim}
+{\footnotesize\begin{verbatim}  
 Solve the following multiple-choice physics problem step by step. Show all work.
 At the end, give the chosen option letter on its own line, prefixed with "ANSWER:".
 Problem: <problem statement>
-\end{verbatim}
+\end{verbatim}}
 \paragraph{Direct / free-response}
-\begin{verbatim}
+{\footnotesize\begin{verbatim}  
 Answer the following physics problem directly with a single number (no explanation).
 Give the final answer on its own line, prefixed with "ANSWER:".
 Problem: <problem statement>
-\end{verbatim}
+\end{verbatim}}
 \paragraph{Direct / multiple-choice}
-\begin{verbatim}
+{\footnotesize\begin{verbatim}  
 Answer the following multiple-choice physics problem.
 Give the chosen option letter on its own line, prefixed with "ANSWER:".
 Problem: <problem statement>
-\end{verbatim}
+\end{verbatim}}
 \paragraph{Structured / free-response}
-\begin{verbatim}
+{\footnotesize\begin{verbatim}  
 Solve the following physics problem step by step.
 Before solving, first write down the knowns and unknowns explicitly, then derive the solution.
 Show all work. At the end, give the final numeric answer on its own line, prefixed with "ANSWER:".
 Problem: <problem statement>
-\end{verbatim}
+\end{verbatim}}
 \paragraph{Structured / multiple-choice}
-\begin{verbatim}
+{\footnotesize\begin{verbatim}  
 Solve the following multiple-choice physics problem step by step.
 Before solving, first write down the knowns and unknowns explicitly, then compare the options.
 At the end, give the chosen option letter on its own line, prefixed with "ANSWER:".
 Problem: <problem statement>
-\end{verbatim}
+\end{verbatim}}
 \paragraph{Chat template}
 The rendered prompt is then wrapped by the tokenizer's chat template
 (\texttt{apply\_chat\_template}), so the model sees its own instruction format.

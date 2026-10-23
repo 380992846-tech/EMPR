@@ -1,5 +1,15 @@
 % 由 scripts/make_paper_tables.py 自动生成，请勿手改。
 % 正文里的每个数字都应引用这里的宏，避免与 results/ 不一致。
+%
+% 关键宏的定义（供人工核对，避免同名不同义）：
+%   \nbWordingFlips == \nbRightToWrong + \nbWrongToRight
+%       即 cross-the-boundary 的不一致对总数，不是「答案数值改变数」
+%   \nbWordingCovered / \nbNumericCovered = 该变体实际覆盖的题数（分母）
+%   \acc* = 正确率（百分数，一位小数）；\nb* = 样本量；\pct* = 百分比
+%   \chiSameFamily  <- results/error_labels.json（Qwen2.5-14B 同族标注）
+%   \chiCrossFamily <- results/error_labels_llama.json（Llama-3.1-8B 异族标注）
+%   \plateauLo/Hi   <- 与峰值层不可区分的最大连续层区间（配对 bootstrap 定义）
+%   以上均经 results/paper_stats.json 中转，可逐项追溯到原始运行
 \providecommand{\nb}[1]{#1}
 \newcommand{\accCotThreeB}{12.1}
 \newcommand{\accCotSevenB}{21.1}
@@ -61,6 +71,7 @@
 \newcommand{\nbCausalCleanWrong}{134}
 \newcommand{\nbCausalFlat}{2}
 \newcommand{\nbLayers}{28}
+\newcommand{\nbLayerStep}{2}
 \newcommand{\peakLayer}{8}
 \newcommand{\peakRecovery}{0.84}
 \newcommand{\nbAllAttempts}{100}
@@ -77,6 +88,9 @@
 \newcommand{\peakCiLo}{0.69}
 \newcommand{\peakCiHi}{0.95}
 \newcommand{\nbNonseparableLayers}{6}
+\newcommand{\plateauLo}{4}
+\newcommand{\plateauHi}{14}
+\newcommand{\nbPlateauLayers}{6}
 \newcommand{\nbBothRight}{19}
 \newcommand{\nbRightToWrong}{1}
 \newcommand{\nbWrongToRight}{4}
@@ -92,6 +106,12 @@
 \newcommand{\wilsonCcLo}{40}
 \newcommand{\wilsonCcHi}{89}
 \newcommand{\nbCleanCorrectK}{7}
+\newcommand{\wilsonCwLo}{1.1}
+\newcommand{\wilsonCwHi}{9.3}
+\newcommand{\nbCleanWrongK}{3}
+\newcommand{\nbNumericCovered}{305}
+\newcommand{\nbWordingCovered}{240}
+\newcommand{\nbSwapCovered}{36}
 \newcommand{\accScafCot}{24.0}
 \newcommand{\pctNoAnswerCot}{71}
 \newcommand{\nbScafCot}{150}

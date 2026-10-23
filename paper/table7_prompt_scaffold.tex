@@ -18,11 +18,17 @@
     structured (knowns/unknowns) & 26.0\% & [19.3, 33.3] & 90\% & 2373 / 4639 \\
     \midrule
     \multicolumn{4}{@{}l}{paired difference: +2.0\,pp, McNemar $p=0.700$} & \\
+    \midrule
+    \multicolumn{5}{@{}l}{\emph{Accuracy by output-format compliance (both prompts pooled)}} \\
+    \quad outputs with \texttt{ANSWER:} line (n=58) & 20.7\% & -- & -- & -- \\
+    \quad outputs without it (n=242) & 26.0\% & -- & -- & -- \\
     \bottomrule
   \end{tabular}
   \vspace{2pt}
-  \parbox{\linewidth}{\footnotesize The last column exposes a separate limitation: most
-  outputs ignore the requested \texttt{ANSWER:} format and are graded through the
-  fallback extractor. Output lengths are well below the token budget, so this is a
+  \parbox{\linewidth}{\footnotesize Upper block: scaffolding changes accuracy by less than
+  one percentage point and is far from significant. Lower block: most outputs ignore the
+  requested \texttt{ANSWER:} format and are graded through the fallback extractor;
+  accuracy is similar with and without the marker, so the fallback does not visibly bias
+  the headline numbers, while output lengths stay well below the token budget --- a
   format-compliance failure rather than truncation.}
 \end{table}

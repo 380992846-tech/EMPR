@@ -65,6 +65,8 @@ sd = [p["std"] for p in cur]
 peak = max(cur, key=lambda p: p["mean_recovery"])
 lo = [ci.get(x, (y - s, y + s))[0] for x, y, s in zip(xs, ys, sd)]
 hi = [ci.get(x, (y - s, y + s))[1] for x, y, s in zip(xs, ys, sd)]
+plo = st.get("plateau_lo", 4)
+phi = st.get("plateau_hi", 14)
 n_tried = d.get("n_problems") or (d["n_valid"] + d["n_skipped_clean_wrong"]
                                   + d["n_skipped_corrupt_flat"])
 
@@ -72,7 +74,8 @@ fig, ax = plt.subplots(figsize=(7.4, 4.4))
 ax.axhline(0, color="black", lw=1.0, ls=":", label="corrupted baseline (no restore)")
 ax.axhline(1, color="#16a34a", lw=0.9, ls="--", alpha=0.7,
            label="clean run (= 1 by construction)")
-ax.axvspan(4, 16, color="#dbeafe", alpha=0.6, lw=0, label="recoverable band (layers 4-16)")
+ax.axvspan(plo, phi, color="#dbeafe", alpha=0.6, lw=0,
+           label=f"recoverable band (layers {plo}-{phi}, formal definition)")
 ax.fill_between(xs, [y - s for y, s in zip(ys, sd)],
                 [y + s for y, s in zip(ys, sd)],
                 color="#64748b", alpha=0.18, lw=0, label="+/-1 std across problems")

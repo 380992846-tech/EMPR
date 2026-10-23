@@ -50,6 +50,7 @@ def causal_layer_stats(path="causal_tracing_scibench_Qwen2.5-7B-Instruct.json",
     d = load(path)
     probs = d["problems"]
     layers = [p["layer"] for p in d["average_curve"]]
+    step_guess = d.get("layer_step") or (layers[1] - layers[0] if len(layers) > 1 else 1)
     # 每题每层的 recovery 向量
     mat = {pid: {pt["layer"]: pt["recovery"] for pt in rec["curve"]}
            for pid, rec in probs.items()}
@@ -88,25 +89,42 @@ def causal_layer_stats(path="causal_tracing_scibench_Qwen2.5-7B-Instruct.json",
                       "lo": round(pct(vals, 0.025), 4),
                       "hi": round(pct(vals, 0.975), 4)})
     peak = max(curve, key=lambda c: c["mean"])
+    best = peak["layer"]
 
-    # 峰值层 vs 每个其他层：配对 bootstrap 差值 CI（用相邻层 diff 的累积和近似不合适，
-    # 这里单独对 (peak, other) 再跑一次差值的 bootstrap）
+    # 峰值层 vs 每个其他层：配对 bootstrap 差值 CI
     vs = {}
     for l in layers:
-        if l == peak["layer"]:
+        if l == best:
             continue
-        dd = [mean_at(peak["layer"], [rng.choice(pids) for _ in range(n)]) -
+        dd = [mean_at(best, [rng.choice(pids) for _ in range(n)]) -
               mean_at(l, [rng.choice(pids) for _ in range(n)]) for _ in range(2000)]
         lo, hi = pct(dd, 0.025), pct(dd, 0.975)
         vs[l] = {"diff": round(peak["mean"] - next(c["mean"] for c in curve if c["layer"] == l), 4),
                  "lo": round(lo, 4), "hi": round(hi, 4),
                  "significant": bool(lo > 0 or hi < 0)}
+
+    # plateau 的**形式化定义**：与峰值层不可区分的层构成的最大连续区间
+    # （审稿意见 M-B：range 的边界必须说明是怎么来的，不能只靠肉眼）
+    nonsep = sorted(l for l, v in vs.items() if not v["significant"]) + [best]
+    nonsep = sorted(nonsep)
+    band = [best]
+    i = nonsep.index(best)
+    j = i
+    while j + 1 < len(nonsep) and nonsep[j + 1] - nonsep[j] <= step_guess:
+        j += 1
+        band.append(nonsep[j])
+    while i - 1 >= 0 and nonsep[i] - nonsep[i - 1] <= step_guess:
+        i -= 1
+        band.append(nonsep[i])
+    band = sorted(set(band))
     return {"n_valid": n, "n_layers": d["n_layers"], "layer_step": d["layer_step"],
-            "curve": curve, "peak_layer": peak["layer"], "peak_mean": peak["mean"],
+            "curve": curve, "peak_layer": best, "peak_mean": peak["mean"],
             "peak_ci": [peak["lo"], peak["hi"]],
             "peak_vs_others": {str(k): v for k, v in vs.items()},
             "n_layers_where_peak_not_separable": sum(
-                1 for v in vs.values() if not v["significant"])}
+                1 for v in vs.values() if not v["significant"]),
+            "plateau_layers": band, "plateau_lo": band[0], "plateau_hi": band[-1],
+            "nonseparable_layers": nonsep}
 
 
 # ---------------------------------------------------------------- M3
