@@ -116,10 +116,14 @@ All runs were executed on a single NVIDIA A800-80G PCIe GPU (112 vCPU,
 991\,GB RAM, 50\,GB scratch disk) with bf16 weights. Checkpoints were downloaded
 one at a time and deleted after use, so peak scratch usage stayed below 30\,GB;
 a single 14B checkpoint needs $\approx$30\,GB free. Total compute for all
-reported runs is \textbf{$\approx$2.0 GPU-hours}, of which $\approx$1.65\,h is
-the twelve evaluation runs (summed from the \texttt{wall\_time\_s} recorded in
-each result file) and the remainder is sensitivity probes, causal tracing and
-error annotation. Table~\ref{tab:compute} gives the breakdown.
+reported runs is \textbf{$\approx$2.6 GPU-hours}, of which $\approx$2.2\,h is
+the fourteen evaluation runs (summed from the \texttt{wall\_time\_s} recorded in
+each result file) and the remainder is sensitivity probes, causal tracing,
+the scaffolding comparison and error annotation.
+Table~\ref{tab:compute} gives the breakdown. An additional
+$\approx$1.0 GPU-hour was spent on one full-scale causal-tracing run that was
+aborted (it was too slow to be practical at full layer resolution) and then
+re-run at reduced scale; it contributes no reported number.
 
 \begin{table}[t]
   \centering
@@ -136,11 +140,13 @@ error annotation. Table~\ref{tab:compute} gives the breakdown.
     SciBench, answer-only             & 4 models $\times$ 323 & 0.02\,h \\
     OlympiadBench, chain-of-thought   & 2 models $\times$ 351 (152 gradable) & 0.58\,h \\
     MMLU physics, multiple choice     & 1 model $\times$ 488  & 0.002\,h \\
+    Scaffolding comparison            & 1 model $\times$ 150 $\times$ 2 prompts (2048 tok) & 0.57\,h \\
     Sensitivity probes                & 4 models $\times$ 323 $\times$ 3 variants & 0.10\,h \\
-    Causal tracing                    & 1 model, 150 attempted (14 valid) & 0.05\,h \\
-    Error annotation                  & 2 judges $\times$ 495 samples & 0.17\,h \\
+    Causal tracing, valid-only        & 1 model, 150 attempted (14 valid) & 0.05\,h \\
+    Causal tracing, all-attempts      & 1 model, 100 attempted $\times$ 7 layers & 0.08\,h \\
+    Error annotation                  & 2 judges $\times$ 2 models $\times$ 495 samples & 0.17\,h \\
     \midrule
-    \textbf{Total}                    & 22 runs & \textbf{$\approx$2.0\,h} \\
+    \textbf{Total}                    & 25 runs & \textbf{$\approx$2.6\,h} \\
     \bottomrule
   \end{tabular}
 \end{table}

@@ -24,9 +24,15 @@ model we tested, without changing accuracy on average, i.e.\ the flips are
 symmetric error jitter rather than a difficulty effect. (iv) Restoring clean
 residual states recovers behaviour mainly from the early-middle layers
 (peak at layer 8 of 28, plateau over layers 4--16) and collapses after layer 18.
+(v) Splitting output execution from semantic correctness separates the two
+pathways: parseability is essentially layer-invariant (96\% even under
+corruption, 97--100\% at every restored layer), whereas correctness tracks the
+restored depth --- recovering to 70\% at layers 0/12 for problems the model can
+solve, but never above 3.3\% at any layer for the 90 problems it cannot solve.
 Taken together: outputs are produced by computation, but the computation is not
 a stable physical solver --- it is surface-conditioned pattern matching with a
-fragile arithmetic tail.
+fragile arithmetic tail, and the failures are capability limits rather than
+misplaced representations that a layer patch could repair.
 
 \paragraph{Why the error taxonomy is itself uncertain (and why that is a
 contribution).}
@@ -57,10 +63,12 @@ bookkeeping --- rather than more physical pre-training data. Second, since 24\%-
 34\% of answers move under a semantics-preserving paraphrase, single-prompt
 evaluation understates the variance of a model's competence; reporting
 paraphrase-consistency alongside accuracy is a cheap and informative robustness
-metric. Our counterfactual probe tests whether the instability is recoverable at
-inference time by adding structural scaffolding to the prompt (requiring the
-knowns and unknowns to be written down explicitly), i.e.\ whether the deficiency
-is a missing scaffold rather than a missing capability.
+metric. We also tested whether the instability is recoverable at inference time by
+adding structural scaffolding to the prompt (requiring the knowns and unknowns to
+be written down explicitly). At a matched token budget on the same 150 problems it
+changes accuracy by $+2.0$ percentage points (McNemar $p=0.70$): prompt-level
+scaffolding does \emph{not} substitute for capability, so the mitigation has to be
+execution-side (tools), not wording-side.
 
 \paragraph{Threats to validity.}
 All numbers come from a single GPU class (A800-80G) and a transformers backend
