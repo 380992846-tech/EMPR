@@ -27,7 +27,13 @@ def _models():
     for f in glob.glob(str(RESULTS / "eval_*.json")):
         d = json.loads(Path(f).read_text(encoding="utf-8"))
         short = d["model"].rstrip("/").split("/")[-1]
-        found.setdefault(short, {})[(d["benchmark"], d["mode"])] = d
+        key = (d["benchmark"], d["mode"])
+        slot = found.setdefault(short, {})
+        # 同一 (模型, 基准, 模式) 可能存在多份结果（如 150 题的消融变体）。
+        # 一律保留样本量更大的那份，避免消融文件覆盖主结果。
+        if key in slot and slot[key].get("n", 0) >= d.get("n", 0):
+            continue
+        slot[key] = d
     ordered = [m for m in ORDER if m in found] + [m for m in sorted(found) if m not in ORDER]
     return found, ordered
 
@@ -131,24 +137,35 @@ def table2_sensitivity():
 def table3_causal():
     f = RESULTS / "causal_tracing_scibench_Qwen2.5-7B-Instruct.json"
     d = json.loads(f.read_text(encoding="utf-8"))
+    stats_f = RESULTS / "paper_stats.json"
+    st = json.loads(stats_f.read_text(encoding="utf-8")).get("M1_layer_ci") if stats_f.exists() else None
+    ci = {c["layer"]: (c["lo"], c["hi"]) for c in (st or {}).get("curve", [])}
+    n_nonsep = (st or {}).get("n_layers_where_peak_not_separable")
+    peak_layer = (st or {}).get("peak_layer", 8)
+    peak_mean = (st or {}).get("peak_mean")
+    peak_ci = (st or {}).get("peak_ci")
+
     buckets = [("0--2", [0, 2]), ("4--8", [4, 6, 8]), ("10--16", [10, 12, 14, 16]),
                ("18--22", [18, 20, 22]), ("24--26", [24, 26])]
     n_tried = d['n_valid'] + d['n_skipped_clean_wrong'] + d['n_skipped_corrupt_flat']
     lines = [
-        r"% 由 scripts/make_paper_tables.py 从 results/causal_tracing_*.json 生成，请勿手改",
+        r"% 由 scripts/make_paper_tables.py 从 results/*.json 生成，请勿手改",
         r"\begin{table}[t]",
         r"  \centering",
-        r"  \caption{Causal tracing on Qwen2.5-7B-Instruct (28 layers): recovery rate when the",
-        r"           clean residual stream is restored at a single layer of the corrupted run.",
-        r"           Only problems whose clean run was correct \emph{and} whose corrupted run",
+        r"  \caption{Causal tracing on Qwen2.5-7B-Instruct (\nbLayers{} layers): recovery rate",
+        r"           when the clean residual stream is restored at a single layer of the corrupted",
+        r"           run. Only problems whose clean run was correct \emph{and} whose corrupted run",
         rf"           actually lost score are counted ($n={d['n_valid']}$ of {n_tried} attempted;",
         rf"           skipped {d['n_skipped_clean_wrong']} clean-wrong and",
-        rf"           {d['n_skipped_corrupt_flat']} corrupted-flat).}}",
+        rf"           {d['n_skipped_corrupt_flat']} corrupted-flat), so the estimate applies to",
+        r"           problems the model can already solve. Intervals are bootstrap 95\% CIs over",
+        r"           problems (10{,}000 resamples, seed 42).}",
         r"  \label{tab:causal}",
         r"  \small",
-        r"  \begin{tabular}{@{}l c c@{}}",
+        r"  \begin{tabular}{@{}l c c c@{}}",
         r"    \toprule",
-        r"    \textbf{Layer range} & \textbf{Mean recovery} & \textbf{Mean $\pm$1 std across problems} \\",
+        r"    \textbf{Layer range} & \textbf{Mean recovery} & \textbf{Bootstrap 95\% CI} &",
+        r"      \textbf{$\pm$1 std across problems} \\",
         r"    \midrule",
     ]
     for name, layers in buckets:
@@ -157,15 +174,70 @@ def table3_causal():
             continue
         m = sum(p["mean_recovery"] for p in pts) / len(pts)
         s = sum(p["std"] for p in pts) / len(pts)
+        los = [ci[l][0] for l in layers if l in ci]
+        his = [ci[l][1] for l in layers if l in ci]
+        ci_txt = (rf"[{min(los):+.2f}, {max(his):+.2f}]" if los else "--")
         mark = r"$^\dagger$" if name == "4--8" else ""
-        lines.append(f"    layers {name}{mark} & {m:+.3f} & $\\pm${s:.3f} \\\\")
+        lines.append(f"    layers {name}{mark} & {m:+.3f} & {ci_txt} & $\\pm${s:.3f} \\\\")
+    note = [r"    \bottomrule", r"  \end{tabular}", r"  \vspace{2pt}"]
+    if peak_mean is not None and peak_ci:
+        note += [
+            rf"  \parbox{{\linewidth}}{{\footnotesize $^\dagger$Recovery is maximal at layer",
+            rf"  {peak_layer} (${peak_mean:+.3f}$, 95\% CI $[{peak_ci[0]:+.2f}, {peak_ci[1]:+.2f}]$),",
+            rf"  but a paired bootstrap over problems \emph{{cannot}} separate it from"
+            rf"  {n_nonsep if n_nonsep is not None else 'several'} other layers inside the",
+            r"  plateau. We therefore claim a recoverable \emph{range} (roughly layers 4--16),",
+            r"  not a single peak layer; only layers beyond $\sim$18 and the embedding region",
+            r"  (whose variance is an order of magnitude larger) are clearly distinguishable.}",
+        ]
+    else:
+        note += [r"  \parbox{\linewidth}{\footnotesize $^\dagger$Peak recovery occurs at layer 8.}"]
+    lines += note + [r"\end{table}", ""]
+    return "\n".join(lines)
+
+
+def table8_wording_2x2():
+    """wording 变体的 2x2 配对计数（审稿意见 M3）：只有很小的样本跨过“对/错”边界。"""
+    f = RESULTS / "paper_stats.json"
+    if not f.exists():
+        return None
+    st = json.loads(f.read_text(encoding="utf-8"))
+    allm = st.get("M3_wording_2x2_all_models") or {}
+    if not allm:
+        return None
+    order = [m for m in ORDER if m in allm] + [m for m in allm if m not in ORDER]
+    lines = [
+        r"% 由 scripts/make_paper_tables.py 从 results/paper_stats.json 生成，请勿手改",
+        r"\begin{table}[t]",
+        r"  \centering",
+        r"  \caption{Paraphrase variants scored for \emph{correctness}: 2$\times$2 paired counts.",
+        r"           The perturbation rewrites phrasing only, so the reference answer stays valid",
+        r"           and a paired comparison is meaningful. Very few items cross the",
+        r"           correct/incorrect boundary, and the two directions are of similar size, i.e.\ we",
+        r"           do not detect a systematic shift (exact McNemar test on the discordant pairs).}",
+        r"  \label{tab:wording-2x2}",
+        r"  \small",
+        r"  \begin{tabular}{@{}l c c c c c@{}}",
+        r"    \toprule",
+        r"    \textbf{Model} & \textbf{both correct} & \textbf{correct$\to$wrong} &",
+        r"      \textbf{wrong$\to$correct} & \textbf{n discordant} & \textbf{exact $p$} \\",
+        r"    \midrule",
+    ]
+    for m in order:
+        v = allm[m]
+        c = v["counts"]
+        p = v["mcnemar_exact_p"]
+        p_txt = "--" if p is None else f"{p:.3f}"
+        lines.append(f"    {_short(m)} & {c['both_right']} & {c['right_to_wrong']} & "
+                     f"{c['wrong_to_right']} & {v['n_flips']} & {p_txt} \\\\")
     lines += [
         r"    \bottomrule",
         r"  \end{tabular}",
         r"  \vspace{2pt}",
-        r"  \parbox{\linewidth}{\footnotesize $^\dagger$Peak recovery occurs at layer 8",
-        r"  ($+0.837 \pm 0.251$). Layers 0--2 show high variance because restoring the",
-        r"  embedding-level state is unstable; recovery collapses after layer 18.}",
+        r"  \parbox{\linewidth}{\footnotesize 240 items per model (the paraphrase coverage). A",
+        r"  value can change without changing correctness: the much larger `changed answer' rate",
+        r"  in Table~\ref{tab:sensitivity} counts value changes, whereas this table counts only",
+        r"  changes that cross the correctness boundary.}",
         r"\end{table}",
         "",
     ]
@@ -174,13 +246,21 @@ def table3_causal():
 
 def table4_errors(kappa=None):
     labels_path = RESULTS / "error_labels.json"
+    st_f = RESULTS / "paper_stats.json"
+    _st = json.loads(st_f.read_text(encoding="utf-8")) if st_f.exists() else {}
+    cross = (_st.get("M4_error_chi2_by_annotator") or {}).get("cross_family_llama8b")
+    _kd = _st.get("kappa_details") or {}
+    if kappa is not None and _kd:
+        kappa = dict(kappa)
+        kappa.setdefault("linear_weighted_kappa", _kd.get("linear_weighted_kappa"))
     lines = [
         r"% 由 scripts/make_paper_tables.py 生成（标签来自 results/error_labels*.json），请勿手改",
         r"\begin{table}[t]",
         r"  \centering",
         r"  \caption{Error-type distribution of the SciBench cot runs, annotated independently by",
         r"           a \emph{same-family} judge (Qwen2.5-14B) and a \emph{cross-family} judge",
-        r"           (Llama-3.1-8B). \emph{unscorable\_ref} (reference answer not numerically",
+        r"           (Llama-3.1-8B); the two blocks are separated by the midrule.",
+        r"           \emph{unscorable\_ref} (reference answer not numerically",
         r"           gradable) and \emph{unparsed\_pred} (no parseable answer) samples are excluded.",
         r"           E1 = wrong physical law; E2 = algebraic / arithmetic / unit error;",
         r"           E3 = violated constraint / internal inconsistency; N = grader false negative.}",
@@ -200,6 +280,10 @@ def table4_errors(kappa=None):
         labels = json.loads(p.read_text(encoding="utf-8"))
         out = {}
         for f in sorted(glob.glob(str(RESULTS / "eval_scibench_cot_*.json"))):
+            # 跳过消融/变体结果文件（文件名带 _n150_ / _t2048_），否则同模型会被覆盖成
+            # 150 题那份，错误样本数直接从 255 掉到 116。
+            if "_n150_" in Path(f).name or "_t2048_" in Path(f).name:
+                continue
             d = json.loads(Path(f).read_text(encoding="utf-8"))
             name = d["model"].rstrip("/").split("/")[-1]
             if name not in ("Qwen2.5-7B-Instruct", "Qwen2.5-14B-Instruct"):
@@ -234,16 +318,20 @@ def table4_errors(kappa=None):
         from src.stats import chi2_contingency
         chi2, p, dof = chi2_contingency([[a[k] for k in ("E1", "E2", "E3", "N")],
                                          [b[k] for k in ("E1", "E2", "E3", "N")]])
-        note = (rf"  \parbox{{\linewidth}}{{\footnotesize Under the same-family judge the "
-                rf"distribution does not differ significantly between 7B and 14B "
-                rf"($\chi^2={chi2:.2f}$, $df={dof}$, $p={p:.3f}$).")
+        note = (rf"  \parbox{{\linewidth}}{{\footnotesize The 7B/14B comparison is run under "
+                rf"\emph{{both}} judges: same-family $\chi^2={chi2:.2f}$, $df={dof}$, $p={p:.3f}$"
+                + (rf"; cross-family $\chi^2={cross['chi2']:.2f}$, $p={cross['p']:.3f}$"
+                   if cross else "")
+                + rf" --- no significant difference either way.")
         if kappa is not None:
-            note += (rf" Cross-family agreement on the same 495 samples is only "
+            note += (rf" Agreement between the two judges is only "
                      rf"$\kappa={kappa['cohens_kappa']:.2f}$ "
-                     rf"({kappa['observed_agreement'] * 100:.0f}\% raw agreement), so the "
-                     rf"\emph{{precise}} category shares are annotator-dependent; what is robust "
-                     rf"across both judges is that E2 dominates and E3 stays small "
-                     rf"(both judges' modal category: {kappa['main_error_a']}).")
+                     rf"({kappa['observed_agreement'] * 100:.0f}\% raw agreement, "
+                     rf"$\kappa_w={kappa.get('linear_weighted_kappa', float('nan')):.2f}$ linearly "
+                     rf"weighted). We therefore claim only what survives both annotators: the "
+                     rf"modal category is E2 under both judges and E3 stays small; the precise "
+                     rf"E1/E2 split is \emph{{not}} claimed, since the judges differ by a factor "
+                     rf"of three on E1.")
         note += r"}"
         lines += [r"  \end{tabular}", r"  \vspace{2pt}", note]
     else:
@@ -331,6 +419,20 @@ def table6_layer_parse_vs_acc():
     layers = [p["layer"] for p in curve]
     parse_min = min(p["parse_rate"] for p in curve)
     parse_max = max(p["parse_rate"] for p in curve)
+    # Wilson 二项 CI（审稿意见：10 题里 7 题的 70% 必须给区间，否则看起来比实际可靠）
+    wst = (json.loads((RESULTS / "paper_stats.json").read_text(encoding="utf-8")).get("wilson_small_n")
+           if (RESULTS / "paper_stats.json").exists() else {}) or {}
+    cc_w = {p["layer"]: p["wilson"] for p in (wst.get("clean_correct") or {}).get("all_layers", [])}
+    cw_w = {p["layer"]: p["wilson"] for p in (wst.get("clean_wrong") or {}).get("all_layers", [])}
+
+    def cell(rate, w, n):
+        """百分比 + Wilson CI（小样本下这个区间比点估计更能说明问题）。"""
+        if rate is None:
+            return "--"
+        s = f"{rate * 100:.1f}"
+        if w:
+            s += rf" \scriptsize[{w[0] * 100:.0f}, {w[1] * 100:.0f}]"
+        return s
 
     lines = [
         r"% 由 scripts/make_paper_tables.py 从 results/ct_all/*.json 生成，请勿手改",
@@ -340,13 +442,16 @@ def table6_layer_parse_vs_acc():
         r"           restored at one layer of the corrupted run; we record whether the model emits a",
         r"           parseable number (\emph{parse}) and whether that number is correct (\emph{acc}).",
         r"           Parseability is essentially layer-invariant, whereas correctness moves with the",
-        r"           restored depth --- and only for problems the model can solve without corruption.}",
+        r"           restored depth --- and only for problems the model can solve without corruption.",
+        r"           Small brackets are Wilson 95\% binomial intervals; with", 
+        rf"           $n={cc.get('n', 0)}$ in the left group they are wide, so the recovery of that",
+        r"           group is indicative rather than precise.}",
         r"  \label{tab:layer-parse-acc}",
         r"  \small",
         r"  \begin{tabular}{@{}l c c c@{}}",
         r"    \toprule",
         r"    \multirow{2}{*}{\textbf{Condition}} & \multirow{2}{*}{\textbf{Parse rate}} &",
-        r"      \multicolumn{2}{c}{\textbf{Accuracy}} \\",
+        r"      \multicolumn{2}{c}{\textbf{Accuracy [Wilson 95\% CI]}} \\",
         r"    \cmidrule(lr){3-4}",
         rf"    & & \textbf{{clean correct (n={cc.get('n', 0)})}} & \textbf{{clean wrong (n={cw.get('n', 0)})}} \\",
         r"    \midrule",
@@ -360,7 +465,8 @@ def table6_layer_parse_vs_acc():
         pt = next((p for p in curve if p["layer"] == l), {})
         lines.append(
             rf"    restore layer {l} & {pct(pt.get('parse_rate'))}\% & "
-            rf"{pct(pc.get('acc_rate'))}\% & {pct(pw.get('acc_rate'))}\% \\")
+            rf"{cell(pc.get('acc_rate'), cc_w.get(l), cc.get('n', 0))}\% & "
+            rf"{cell(pw.get('acc_rate'), cw_w.get(l), cw.get('n', 0))}\% \\")
     lines += [
         r"    \bottomrule",
         r"  \end{tabular}",
@@ -595,6 +701,49 @@ def numbers_tex(found):
               rf"\newcommand{{\pctAgreeAnnotators}}{{{a['observed_agreement'] * 100:.0f}}}",
               rf"\newcommand{{\nbAnnotated}}{{{a['n_compared']}}}"]
 
+    # 审稿意见要求的补充统计（M1/M3/M4 + 加权 kappa）
+    ps = RESULTS / "paper_stats.json"
+    if ps.exists():
+        st = json.loads(ps.read_text(encoding="utf-8"))
+        m1 = st.get("M1_layer_ci") or {}
+        if m1:
+            lo, hi = m1["peak_ci"]
+            L += [rf"\newcommand{{\peakCiLo}}{{{lo:.2f}}}",
+                  rf"\newcommand{{\peakCiHi}}{{{hi:.2f}}}",
+                  rf"\newcommand{{\nbNonseparableLayers}}{{{m1['n_layers_where_peak_not_separable']}}}"]
+        m3 = st.get("M3_wording_2x2") or {}
+        if m3:
+            c = m3["counts"]
+            L += [rf"\newcommand{{\nbBothRight}}{{{c['both_right']}}}",
+                  rf"\newcommand{{\nbRightToWrong}}{{{c['right_to_wrong']}}}",
+                  rf"\newcommand{{\nbWrongToRight}}{{{c['wrong_to_right']}}}",
+                  rf"\newcommand{{\nbWordingFlips}}{{{m3['n_flips']}}}",
+                  rf"\newcommand{{\pWordingExact}}{{{m3['mcnemar_exact_p']:.3f}}}"]
+        m4 = st.get("M4_error_chi2_by_annotator") or {}
+        sf = m4.get("same_family_qwen14b")
+        cf = m4.get("cross_family_llama8b")
+        if sf:
+            L.append(rf"\newcommand{{\chiSameFamily}}{{{sf['chi2']:.2f}}}")
+            L.append(rf"\newcommand{{\pChiSameFamily}}{{{sf['p']:.3f}}}")
+        if cf:
+            L.append(rf"\newcommand{{\chiCrossFamily}}{{{cf['chi2']:.2f}}}")
+            L.append(rf"\newcommand{{\pChiCrossFamily}}{{{cf['p']:.3f}}}")
+        kd = st.get("kappa_details") or {}
+        if kd:
+            L.append(rf"\newcommand{{\kappaLinearWeighted}}{{{kd['linear_weighted_kappa']:.3f}}}")
+            e2 = (kd.get("per_class") or {}).get("E2") or {}
+            if e2.get("agreement_given_a") is not None:
+                L.append(rf"\newcommand{{\pctAgreeEtwo}}{{{e2['agreement_given_a'] * 100:.0f}}}")
+            e1 = (kd.get("per_class") or {}).get("E1") or {}
+            if e1.get("agreement_given_a") is not None:
+                L.append(rf"\newcommand{{\pctAgreeEone}}{{{e1['agreement_given_a'] * 100:.0f}}}")
+        ws = st.get("wilson_small_n") or {}
+        ccw = (ws.get("clean_correct") or {})
+        if ccw.get("wilson95"):
+            L.append(rf"\newcommand{{\wilsonCcLo}}{{{ccw['wilson95'][0] * 100:.0f}}}")
+            L.append(rf"\newcommand{{\wilsonCcHi}}{{{ccw['wilson95'][1] * 100:.0f}}}")
+            L.append(rf"\newcommand{{\nbCleanCorrectK}}{{{ccw['k']}}}")
+
     # 脚手架配对
     for tag, pat in (("Cot", "eval_scibench_cot_n150_t2048_*.json"),
                      ("Struct", "eval_scibench_structured_n150_t2048_*.json")):
@@ -622,7 +771,7 @@ def numbers_tex(found):
         L.append(rf"\newcommand{{\scafP}}{{{_pval:.3f}}}")
 
     # 工程指标
-    L += [r"\newcommand{\nbTests}{83}", r"\newcommand{\nbSelfCheck}{23}",
+    L += [r"\newcommand{\nbTests}{84}", r"\newcommand{\nbSelfCheck}{23}",
           r"\newcommand{\gpuHoursTotal}{2.6}", r"\newcommand{\nbEvalRuns}{14}",
           r"\newcommand{\nbRunsTotal}{25}"]
     return "\n".join(L) + "\n"
@@ -647,6 +796,7 @@ def main():
         "table5_cross_task.tex": table5_cross_task(found),
     }
     extra = {"table6_layer_parse_vs_acc.tex": table6_layer_parse_vs_acc(),
+             "table8_wording_2x2.tex": table8_wording_2x2(),
              "table7_prompt_scaffold.tex": table7_prompt_scaffold(found)}
     for name, text in extra.items():
         if text is None:

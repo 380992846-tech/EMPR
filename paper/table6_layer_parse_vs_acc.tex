@@ -5,26 +5,29 @@
            restored at one layer of the corrupted run; we record whether the model emits a
            parseable number (\emph{parse}) and whether that number is correct (\emph{acc}).
            Parseability is essentially layer-invariant, whereas correctness moves with the
-           restored depth --- and only for problems the model can solve without corruption.}
+           restored depth --- and only for problems the model can solve without corruption.
+           Small brackets are Wilson 95\% binomial intervals; with
+           $n=10$ in the left group they are wide, so the recovery of that
+           group is indicative rather than precise.}
   \label{tab:layer-parse-acc}
   \small
   \begin{tabular}{@{}l c c c@{}}
     \toprule
     \multirow{2}{*}{\textbf{Condition}} & \multirow{2}{*}{\textbf{Parse rate}} &
-      \multicolumn{2}{c}{\textbf{Accuracy}} \\
+      \multicolumn{2}{c}{\textbf{Accuracy [Wilson 95\% CI]}} \\
     \cmidrule(lr){3-4}
     & & \textbf{clean correct (n=10)} & \textbf{clean wrong (n=90)} \\
     \midrule
     corrupted (no restore) & 96.0\% & -- & 1.0\% \\
     clean (no corruption)  & 100.0\% & -- & 10.0\% \\
     \midrule
-    restore layer 0 & 99.0\% & 70.0\% & 1.1\% \\
-    restore layer 4 & 99.0\% & 40.0\% & 3.3\% \\
-    restore layer 8 & 99.0\% & 50.0\% & 0.0\% \\
-    restore layer 12 & 97.0\% & 70.0\% & 0.0\% \\
-    restore layer 16 & 100.0\% & 60.0\% & 3.3\% \\
-    restore layer 20 & 100.0\% & 30.0\% & 2.2\% \\
-    restore layer 24 & 97.0\% & 10.0\% & 0.0\% \\
+    restore layer 0 & 99.0\% & 70.0 \scriptsize[40, 89]\% & 1.1 \scriptsize[0, 6]\% \\
+    restore layer 4 & 99.0\% & 40.0 \scriptsize[17, 69]\% & 3.3 \scriptsize[1, 9]\% \\
+    restore layer 8 & 99.0\% & 50.0 \scriptsize[24, 76]\% & 0.0 \scriptsize[0, 4]\% \\
+    restore layer 12 & 97.0\% & 70.0 \scriptsize[40, 89]\% & 0.0 \scriptsize[0, 4]\% \\
+    restore layer 16 & 100.0\% & 60.0 \scriptsize[31, 83]\% & 3.3 \scriptsize[1, 9]\% \\
+    restore layer 20 & 100.0\% & 30.0 \scriptsize[11, 60]\% & 2.2 \scriptsize[1, 8]\% \\
+    restore layer 24 & 97.0\% & 10.0 \scriptsize[2, 40]\% & 0.0 \scriptsize[0, 4]\% \\
     \bottomrule
   \end{tabular}
   \vspace{2pt}

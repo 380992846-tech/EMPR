@@ -51,7 +51,7 @@ def main() -> int:
     # 2) 宏定义 vs 使用
     defined = set(re.findall(r"\\newcommand\{\\(\w+)\}", strip_comments(
         (PAPER / "numbers.tex").read_text(encoding="utf-8"))))
-    body = collect([MAIN, PAPER / "discussion.tex",
+    body = collect([MAIN, PAPER / "discussion.tex", PAPER / "appendix.tex",
                     *[p for p in glob.glob(str(PAPER / "table*.tex"))]])
     used = set(re.findall(r"\\([A-Za-z]+)", body))
     # 只认"前缀 + 大写字母/数字"的形式，避免把 \\citep、\\kappa 这类内置命令当成我们的宏

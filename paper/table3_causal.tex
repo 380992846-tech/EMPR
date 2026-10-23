@@ -1,27 +1,33 @@
-% 由 scripts/make_paper_tables.py 从 results/causal_tracing_*.json 生成，请勿手改
+% 由 scripts/make_paper_tables.py 从 results/*.json 生成，请勿手改
 \begin{table}[t]
   \centering
-  \caption{Causal tracing on Qwen2.5-7B-Instruct (28 layers): recovery rate when the
-           clean residual stream is restored at a single layer of the corrupted run.
-           Only problems whose clean run was correct \emph{and} whose corrupted run
+  \caption{Causal tracing on Qwen2.5-7B-Instruct (\nbLayers{} layers): recovery rate
+           when the clean residual stream is restored at a single layer of the corrupted
+           run. Only problems whose clean run was correct \emph{and} whose corrupted run
            actually lost score are counted ($n=14$ of 150 attempted;
            skipped 134 clean-wrong and
-           2 corrupted-flat).}
+           2 corrupted-flat), so the estimate applies to
+           problems the model can already solve. Intervals are bootstrap 95\% CIs over
+           problems (10{,}000 resamples, seed 42).}
   \label{tab:causal}
   \small
-  \begin{tabular}{@{}l c c@{}}
+  \begin{tabular}{@{}l c c c@{}}
     \toprule
-    \textbf{Layer range} & \textbf{Mean recovery} & \textbf{Mean $\pm$1 std across problems} \\
+    \textbf{Layer range} & \textbf{Mean recovery} & \textbf{Bootstrap 95\% CI} &
+      \textbf{$\pm$1 std across problems} \\
     \midrule
-    layers 0--2 & +0.431 & $\pm$0.912 \\
-    layers 4--8$^\dagger$ & +0.665 & $\pm$0.378 \\
-    layers 10--16 & +0.614 & $\pm$0.431 \\
-    layers 18--22 & +0.238 & $\pm$0.337 \\
-    layers 24--26 & +0.061 & $\pm$0.174 \\
+    layers 0--2 & +0.431 & [-0.11, +0.84] & $\pm$0.912 \\
+    layers 4--8$^\dagger$ & +0.665 & [+0.33, +0.95] & $\pm$0.378 \\
+    layers 10--16 & +0.614 & [+0.28, +0.88] & $\pm$0.431 \\
+    layers 18--22 & +0.238 & [+0.00, +0.64] & $\pm$0.337 \\
+    layers 24--26 & +0.061 & [+0.00, +0.19] & $\pm$0.174 \\
     \bottomrule
   \end{tabular}
   \vspace{2pt}
-  \parbox{\linewidth}{\footnotesize $^\dagger$Peak recovery occurs at layer 8
-  ($+0.837 \pm 0.251$). Layers 0--2 show high variance because restoring the
-  embedding-level state is unstable; recovery collapses after layer 18.}
+  \parbox{\linewidth}{\footnotesize $^\dagger$Recovery is maximal at layer
+  8 ($+0.837$, 95\% CI $[+0.69, +0.95]$),
+  but a paired bootstrap over problems \emph{cannot} separate it from  6 other layers inside the
+  plateau. We therefore claim a recoverable \emph{range} (roughly layers 4--16),
+  not a single peak layer; only layers beyond $\sim$18 and the embedding region
+  (whose variance is an order of magnitude larger) are clearly distinguishable.}
 \end{table}

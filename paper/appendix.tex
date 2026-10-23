@@ -1,0 +1,155 @@
+% 由 scripts/make_paper_appendix.py 自动生成，请勿手改。
+
+\section{Prompt templates}
+\label{app:prompts}
+All prompts are rendered from a single template table in \texttt{src/prompts.py};
+the MCQ templates are selected automatically when the question contains at least two
+options of the form ``A. \dots''. Every template demands the final answer on its own
+line prefixed with \texttt{ANSWER:}, which is what the extractor looks for first.
+
+\paragraph{Cot / free-response}
+\begin{verbatim}
+Solve the following physics problem step by step. Show all work.
+At the end, give the final numeric answer on its own line, prefixed with "ANSWER:".
+Problem: <problem statement>
+\end{verbatim}
+\paragraph{Cot / multiple-choice}
+\begin{verbatim}
+Solve the following multiple-choice physics problem step by step. Show all work.
+At the end, give the chosen option letter on its own line, prefixed with "ANSWER:".
+Problem: <problem statement>
+\end{verbatim}
+\paragraph{Direct / free-response}
+\begin{verbatim}
+Answer the following physics problem directly with a single number (no explanation).
+Give the final answer on its own line, prefixed with "ANSWER:".
+Problem: <problem statement>
+\end{verbatim}
+\paragraph{Direct / multiple-choice}
+\begin{verbatim}
+Answer the following multiple-choice physics problem.
+Give the chosen option letter on its own line, prefixed with "ANSWER:".
+Problem: <problem statement>
+\end{verbatim}
+\paragraph{Structured / free-response}
+\begin{verbatim}
+Solve the following physics problem step by step.
+Before solving, first write down the knowns and unknowns explicitly, then derive the solution.
+Show all work. At the end, give the final numeric answer on its own line, prefixed with "ANSWER:".
+Problem: <problem statement>
+\end{verbatim}
+\paragraph{Structured / multiple-choice}
+\begin{verbatim}
+Solve the following multiple-choice physics problem step by step.
+Before solving, first write down the knowns and unknowns explicitly, then compare the options.
+At the end, give the chosen option letter on its own line, prefixed with "ANSWER:".
+Problem: <problem statement>
+\end{verbatim}
+\paragraph{Chat template}
+The rendered prompt is then wrapped by the tokenizer's chat template
+(\texttt{apply\_chat\_template}), so the model sees its own instruction format.
+Whether a chat template was applied is recorded in every result file as
+\texttt{meta.chat\_template}.
+Example problem used in this paper: \texttt{A 2.0 kg block slides down a 30 degree incline at 3.0 m/s. ...}
+
+\section{Result-file schema}
+\label{app:schema}
+Every evaluation writes one JSON file. The top level records the run identity and
+provenance; \texttt{detail} holds one record per problem, which is what the audit
+tables are built from. Minimal schema of \texttt{results/eval\_*.json}:
+
+\begin{verbatim}
+  "model": string,
+  "benchmark": string,
+  "mode": string,
+  "n": int,
+  "n_scorable": int,
+  "n_unscored": int,
+  "n_unparsed_pred": int,
+  "overall_acc": string,
+  "per_domain_acc": object,
+  "detail": [ ... 323 records ... ],
+  "wall_time_s": float,
+  "max_new_tokens": int,
+  "data_composition": object,
+  "prompt_fingerprint": string,
+  "meta": object,
+  # detail[i]:
+  #   "id": string,
+  #   "question": string,
+  #   "domain": string,
+  #   "subset": string,
+  #   "ref": string,
+  #   "pred_raw": string,
+  #   "pred_val": float,
+  #   "correct": bool,
+  #   "status": string,
+  #   "scorable": bool,
+  #   "n_pred_chars": int,
+\end{verbatim}
+
+Two fields deserve emphasis. \texttt{scorable} marks whether the \emph{reference}
+answer could be parsed; rows with \texttt{scorable=false} are excluded from every
+denominator and reported as \texttt{n\_unscored}. \texttt{status} is one of
+\texttt{correct}, \texttt{incorrect}, \texttt{unparsed\_pred} or
+\texttt{unscorable\_ref}, so a reader can recompute any accuracy in this paper from
+the raw file without re-running a model. Sensitivity files
+(\texttt{sensitivity\_*\_*.json}) additionally carry \texttt{items[]}, one entry per
+perturbed problem with the perturbed question text and both answers, enabling
+per-item audit of the perturbation.
+
+\section{Statistical details}
+\label{app:stats}
+\paragraph{Bootstrap.}
+Confidence intervals resample problems with replacement $B$~=~10{,}000 times using
+\texttt{random.Random} seeded with 42, and take the 2.5/97.5 percentiles of the
+resampled statistic (order statistics of the resampled accuracy, i.e.\ a percentile
+interval), the standard non-parametric approach of \citet{efron1993bootstrap}.
+The same seed is used for every model, so intervals are exactly
+reproducible across machines and do not depend on the NumPy version.
+
+\paragraph{Layer-wise interval and paired test.}
+The recovery curve has $n=14$ problems. Each layer's mean gets a
+percentile bootstrap interval from the same $B$; to test whether the point estimate's
+best layer is meaningful, we bootstrap the \emph{difference} between that layer and
+every other layer (2{,}000 resamples) and ask whether the interval excludes zero.
+With this test the best layer (layer 8) is \emph{not} separable
+from 6 other layers, which is why the paper
+claims a band rather than a peak.
+
+\paragraph{Small-sample proportions.}
+Proportions computed on few observations are reported with Wilson score intervals
+(95\%), which behave better than the normal approximation near 0 and 1. For example the
+layer-parse recovery on the correct-baseline group is a proportion of a~\nbCleanCorrect{}-problem sample.
+
+\paragraph{Paired tests.}
+Correctness comparisons between two conditions on the same problems use McNemar's test
+\citep{mcnemar1947} on the discordant pairs. When the number of discordant pairs is
+small we report the exact binomial two-sided $p$-value rather than the asymptotic
+$\chi^2$ version.
+
+\paragraph{Annotator agreement.}
+We report both unweighted Cohen's $\kappa$ and a linearly weighted $\kappa_w$
+\citep{landis1977kappa} that gives partial credit for adjacent categories, plus
+per-class agreement. The distinction matters because the categories are heavily
+imbalanced (E2 dominates), which depresses $\kappa$ even when most individual
+decisions agree.
+
+\begin{table}[h]
+  \centering
+  \caption{Per-class agreement between the same-family and cross-family judge
+           ($n=\nbAnnotated$ samples; counts are per class).}
+  \label{tab:perclass}
+  \small
+  \begin{tabular}{@{}l c c c c@{}}
+    \toprule
+    \textbf{Class} & \textbf{cross-family count} & \textbf{same-family count} &
+      \textbf{both} & \textbf{agreement given same-family label} \\
+    \midrule
+    E1 & 129 & 41 & 20 & 16\% \\
+    E2 & 303 & 414 & 267 & 88\% \\
+    E3 & 46 & 40 & 11 & 24\% \\
+    N & 17 & 0 & 0 & 0\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}

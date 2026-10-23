@@ -1,5 +1,5 @@
 % ==========================================================================
-% EMPR — 主稿骨架（LaTeX）
+% EMPR — 主稿（LaTeX）
 %
 % 数字规则：本文件**不写任何手抄数字**。
 %   - 表格：\input{paper/tableN_*.tex}（由 scripts/make_paper_tables.py 生成）
@@ -7,8 +7,7 @@
 % 因此"论文以哪个为准"的答案是：以本文件为准，而本文件的数字全部指向 results/。
 % 更新流程：重跑实验 -> python scripts/make_paper_tables.py -> 重新编译本文。
 %
-% 编译（见 paper/BUILD.md）：
-%   cd paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
+% 编译：cd paper && latexmk -pdf main.tex   （详见 paper/BUILD.md）
 % ==========================================================================
 \documentclass[10pt,letterpaper]{article}
 
@@ -27,14 +26,12 @@
 \titlespacing*{\section}{0pt}{1.2ex plus .3ex}{0.6ex}
 \graphicspath{{../results/}{./}}
 
-% 自动生成的数字宏（不要手改 numbers.tex）
 \input{numbers.tex}
 
-% 标记"待人工补写"的位置，编译后可见，投稿前必须清零
 \newcommand{\TODO}[1]{\textcolor{red}{[TODO: #1]}}
 
-\title{\textbf{Do Open LLMs Compute or Retrieve?\\
-A Multi-Probe Study of Physics Reasoning in Open-Weight Language Models}}
+\title{\textbf{Surface-Conditioned Computation:\\
+Probing Whether Open LLMs Compute or Retrieve on Physics Problems}}
 \author{Anonymous Authors}
 \date{}
 
@@ -43,36 +40,35 @@ A Multi-Probe Study of Physics Reasoning in Open-Weight Language Models}}
 
 % ---------------------------------------------------------------- Abstract
 \begin{abstract}
-We study whether open-weight language models actually \emph{compute} when they
+We ask whether open-weight language models actually \emph{compute} when they
 answer multi-step physics problems, or whether they pattern-match against
 memorised solutions. Rather than reporting a single accuracy number, we combine
-five probes on SciBench physics (\nbSciBench{} problems) with a
-multiple-choice control (MMLU physics, \nbMMLU{} problems) and a second
-free-response benchmark (OlympiadBench physics, \nbOlympiadAll{} problems,
-\nbOlympiadScorable{} numerically gradable).
-Our main findings are: (i) prompting matters more than scale --- greedy
-chain-of-thought roughly doubles accuracy over answer-only for the Qwen2.5 family
-(\ratioSevenB$\times$ at 7B) while a two-fold parameter increase buys only
-\gapFourteenVsSevenCot{} points; (ii) the same 7B model answers \accMMLU\% of
+five probes on SciBench physics (\nbSciBench{} problems), a multiple-choice
+control (MMLU physics, \nbMMLU{} problems) and a second free-response benchmark
+(OlympiadBench physics, \nbOlympiadAll{} problems).
+Three findings carry the paper. First, \emph{prompting outweighs scale}:
+chain-of-thought multiplies accuracy by \ratioThreeB--\ratioFourteenB$\times$
+across the Qwen2.5 family, whereas doubling parameters from 7B to 14B adds only
+\gapFourteenVsSevenCot{} points, and the benefit is family-dependent rather than
+universal (\ratioLlamaEightB$\times$ for Llama-3.1-8B). Second, \emph{knowledge
+is present but execution is not}: the same 7B model answers \accMMLU\% of
 multiple-choice physics items but only \accCotSevenB\% when it must produce the
-number itself, which rules out missing knowledge as the explanation;
-(iii) a semantics-preserving paraphrase flips \pctChangedSevenBWording\% of final
-answers while leaving accuracy unchanged, i.e.\ the flips are symmetric error
-jitter, and this holds for every model we tested;
-(iv) restoring clean residual states recovers behaviour mainly from the
-early-middle layers (peak at layer \peakLayer{} of \nbLayers), and splitting
-output execution from semantic correctness shows that parseability is essentially
-layer-invariant (\pctParseCorrupt\% even under corruption) whereas correctness
-tracks restored depth --- recoverable only for problems the model can already
-solve;
-(v) prompt-level scaffolding does not substitute for capability
-(\scafDeltaPP{} points, McNemar $p=\scafP$).
-An error-type annotation cross-checked by a second, cross-family judge shows that
-the dominant failure is arithmetic rather than physical, but also that the error
-taxonomy itself is annotator-dependent ($\kappa=\kappaAnnotators$), which we
-report as a measurement limitation rather than hide.
-All experiments were run on a single 80\,GB GPU in about \gpuHoursTotal{}
-GPU-hours; code, per-run metadata and the dual-annotated sample are released.
+number itself. Third, \emph{answers are surface-conditioned}: a paraphrase that
+leaves physics and data bit-identical changes \pctChangedSevenBWording\% of final
+answers in every model we test, yet moves only \nbWordingFlips{} of 240 items
+across the correct/incorrect boundary, so the instability is value-level wandering
+rather than a systematic difficulty change.
+Two further probes constrain the mechanism. Corrupt-and-restore causal tracing
+localises recoverable behaviour to an early-middle band (roughly layers 4--16 of
+\nbLayers) that we can identify as a range but \emph{not} as a single peak layer,
+and separating output execution from correctness shows that parseability is
+layer-invariant while correctness is not; on problems the model cannot solve,
+restoration never rescues them at any single layer. Error annotation
+cross-checked by a second, cross-family judge indicates that arithmetic rather
+than physical knowledge dominates the failures, but agreement between the judges
+is only $\kappa=\kappaAnnotators$, so we claim only annotator-robust statements
+and release the dual-annotated sample as a resource for LLM-as-a-judge research.
+All experiments ran on a single 80\,GB GPU in about \gpuHoursTotal{} GPU-hours.
 \end{abstract}
 
 % ---------------------------------------------------------------- 1 Intro
@@ -81,53 +77,63 @@ GPU-hours; code, per-run metadata and the dual-annotated sample are released.
 
 Chain-of-thought prompting \citep{wei2022cot} is routinely credited with giving
 language models ``reasoning'' ability, and physics benchmarks such as SciBench
-\citep{wang2023scibench} and OlympiadBench \citep{he2024olympiadbench} are
-routinely used to demonstrate progress. Yet a single accuracy number cannot
-distinguish two very different internal situations: a model that derives the
-answer from the stated quantities, and a model that recognises the problem
-family and emits a plausible-looking number. The distinction matters for anyone
-who wants to trust, audit or improve such systems.
+\citep{wang2023scibench} and OlympiadBench \citep{he2024olympiadbench} are used to
+demonstrate progress. A single accuracy number, however, cannot distinguish two
+very different internal situations: a model that derives the answer from the
+stated quantities, and a model that recognises the problem family and emits a
+plausible-looking number.
 
-This paper takes the distinction seriously and treats it as an empirical question
-with several independent probes, rather than as a claim about model internals.
+\paragraph{A binary framing, deliberately, and how the data refine it.}
+We organise the study around the question ``compute or retrieve?'' because it
+generates falsifiable predictions: a retrieving model should be insensitive to
+the numerical values and highly sensitive to surface form, whereas a computing
+model should show the opposite pattern. We stress in advance that our results do
+\emph{not} support either pure endpoint. What the probes jointly indicate is a
+third regime, which we call \emph{surface-conditioned computation}: the stated
+values do enter the computation (so it is not lookup), the computation is
+nevertheless highly sensitive to semantically irrelevant phrasing, and it fails
+systematically at the numerical-execution stage. The title's question is the
+entry point of the investigation, not its conclusion; \S\ref{sec:discussion}
+returns to this framing explicitly.
+
 We ask three questions and answer them with measurements that are cheap,
 deterministic and reproducible on a single GPU:
 
 \begin{itemize}
-  \item \textbf{What does performance look like?} (\S\ref{sec:main}) Across five
+  \item \textbf{What does performance look like?} (\S\ref{sec:main}) Five
         open-weight models on \nbSciBench{} SciBench physics problems, with
         bootstrap confidence intervals and per-sub-domain breakdowns.
   \item \textbf{Is the model computing or retrieving?} (\S\ref{sec:sensitivity})
-        We perturb the same problems in three ways that are semantically
-        different but superficially similar: change the numbers, rewrite the
-        wording, and exchange two physical quantities.
-  \item \textbf{If it computes, where?} (\S\ref{sec:causal}) We use
-        corrupt-and-restore causal tracing to localise the computation in depth,
-        and separate ``producing a number'' from ``producing the right number''.
+        Three perturbations that are semantically different but superficially
+        similar: change the numbers, rewrite the wording, exchange two physical
+        quantities.
+  \item \textbf{If it computes, where?} (\S\ref{sec:causal}) Corrupt-and-restore
+        causal tracing, followed by a separation of ``producing a number'' from
+        ``producing the right number''.
 \end{itemize}
 
-Two further probes close the loop. A multiple-choice control (\S\ref{sec:cross})
-holds knowledge fixed and varies only the answer format; an error-type analysis
-with a cross-family annotator check (\S\ref{sec:errors}) asks \emph{which} stage
-fails and how reliable such attributions are. We also test whether prompt-level
-scaffolding can repair the instability we find (\S\ref{sec:scaffold}).
+A multiple-choice control (\S\ref{sec:cross}) holds knowledge fixed and varies
+only the answer format; an error-type analysis with a cross-family annotator
+check (\S\ref{sec:errors}) asks \emph{which} stage fails and how reliable such
+attributions are; and \S\ref{sec:scaffold} tests whether prompt-level scaffolding
+can repair the instability.
 
-Our contributions are:
+\paragraph{Contributions.}
 \begin{enumerate}
   \item A multi-probe protocol that separates computation from retrieval using
-        only black-box generation plus (for one open-weight model) residual-stream
-        interventions, together with the finding that \emph{paraphrase
-        instability} is a reproducible, model-generic signal of
-        surface-conditioned answering.
+        only black-box generation plus, for one open-weight model, residual-stream
+        interventions --- together with the finding that \emph{paraphrase
+        instability} is a reproducible, model-generic signature of
+        surface-conditioned answering, and that it is value-level rather than
+        correctness-level.
   \item A representation-vs-output decomposition: output execution is
         layer-invariant while correctness is layer-localised, and failures on
         problems the model cannot solve are \emph{not} recoverable by restoring
         any single layer.
   \item An honest measurement result: with a same-family and a cross-family judge
         annotating the same \nbAnnotated{} errors, agreement is only
-        $\kappa=\kappaAnnotators$. We therefore claim only annotator-robust
-        statements and release the dual-annotated sample as a resource for
-        LLM-as-a-judge robustness research.
+        $\kappa=\kappaAnnotators$. We claim only annotator-robust statements and
+        release the dual-annotated sample as a resource.
 \end{enumerate}
 
 % ---------------------------------------------------------------- 2 Related
@@ -140,31 +146,31 @@ free-response answers; we use its physics subsets and restrict to the
 \nbSciBench{} problems whose reference answers are numerically gradable.
 OlympiadBench \citep{he2024olympiadbench} contains competition problems; only
 \pctOlympiadScorable\% of its physics items have numerically gradable references,
-a coverage limit we carry through all our tables. MMLU \citep{hendrycks2021mmlu}
+a coverage limit we carry through every table. MMLU \citep{hendrycks2021mmlu}
 provides multiple-choice knowledge questions and serves here as a format control
 rather than as a target.
 
 \paragraph{Causal tracing and localisation.}
 Activation- and state-level interventions are standard for localising behaviour
-in open models \citep{meng2022locating,stolfo2023mechanistic}. We use the
-simplest variant --- corrupt the input, then restore the clean residual stream at
-a single layer --- because it requires no training and yields a per-layer curve.
-We deliberately restrict this probe to one open-weight model, since hidden-state
-access is impossible for API-only models, and we report the strict inclusion rule
-that shrinks the analysable sample.
+in open models \citep{meng2022locating,stolfo2023mechanistic}. We use the simplest
+variant --- corrupt the input, then restore the clean residual stream at a single
+layer --- because it requires no training and yields a per-layer curve. In
+factual-recall studies the recoverable signal typically sits in the middle of the
+network; our plateau sits \emph{earlier} than the middle band of a
+\nbLayers-layer model, which we discuss in \S\ref{sec:causal}.
 
 \paragraph{Sensitivity and robustness of LLM answers.}
 Prompt sensitivity is well documented \citep{sclar2023quantifying}, usually as a
-nuisance to be averaged out. We instead treat sensitivity as the measurement: a
-perturbation that leaves physics and data untouched but changes the answer is
-direct evidence that the answer depends on surface form.
+nuisance to be averaged out. We instead treat sensitivity as the measurement, and
+--- unlike most prior work --- we separate \emph{value} changes from
+\emph{correctness} changes, which turn out to have very different magnitudes.
 
 \paragraph{LLM-as-a-judge and error taxonomies.}
 Using a strong model to label errors is common practice
 \citep{zheng2023judging}, and its reliability is usually reported as agreement
 with human labels. We contribute a case where two \emph{LLM} judges disagree
-substantially on a subjective taxonomy, and argue that this disagreement is
-itself the informative quantity.
+substantially on a subjective taxonomy, and argue that the disagreement is itself
+the informative quantity.
 
 % ---------------------------------------------------------------- 3 Method
 \section{Method}
@@ -172,32 +178,33 @@ itself the informative quantity.
 
 \subsection{Benchmarks and grading}
 All correctness decisions are made by symbolic/numeric comparison. The final
-answer is extracted from the generation by a precedence-ordered procedure
-(\texttt{ANSWER:} line, taking the last occurrence; then \texttt{\textbackslash
-boxed\{\}}; then ``answer is $X$''; then the last number on the last line),
-normalised for Unicode minus signs, superscripts and thousands separators, and
-compared to the reference under a 5\% relative tolerance (0.01 absolute for
-near-zero targets).
+answer is extracted by a precedence-ordered procedure (\texttt{ANSWER:} line,
+taking the last occurrence; then \texttt{\textbackslash boxed\{\}}; then
+``answer is $X$''; then the last number on the last line), normalised for Unicode
+minus signs, superscripts and thousands separators, and compared to the reference
+under a 5\% relative tolerance (0.01 absolute for near-zero targets).
 
 Reference answers are parsed with a \emph{stricter} parser than model outputs: a
 reference that is not a single number is marked unscorable and removed from the
 denominator rather than counted as a model error, because a permissive parser
 reads expressions such as $x^2+2x$ as $2$ and silently corrupts the denominator.
-For SciBench physics all \nbSciBench{} references are numerically gradable, so
-the denominator is the full set; for OlympiadBench only
-\nbOlympiadScorable{} of \nbOlympiadAll{} are, and we report that coverage
-everywhere it applies. Grading is covered by \nbSelfCheck{} self-test cases and
-\nbTests{} unit tests, and an end-to-end oracle check (feed the reference as the
-model output) yields 100\% self-consistency.
+For SciBench physics all \nbSciBench{} references are numerically gradable, so the
+denominator is the full set; for OlympiadBench only \nbOlympiadScorable{} of
+\nbOlympiadAll{} are. Grading is covered by \nbSelfCheck{} self-test cases and
+\nbTests{} unit tests, and an oracle check (feed the reference as the model
+output) yields 100\% self-consistency. Full prompt templates are given in
+Appendix~\ref{app:prompts}.
 
 \subsection{Models and inference}
 We evaluate five open-weight instruct models: Qwen2.5-3B/7B/14B-Instruct
 \citep{qwen2024}, Llama-3.1-8B-Instruct \citep{grattafiori2024llama3}, and
 DeepSeek-R1-Distill-Qwen-7B \citep{guo2025deepseekr1}. Decoding is greedy with a
-fixed seed, so every reported number is deterministic. We use the tokenizer's
-chat template, left padding for batched generation, and the \texttt{transformers}
-backend throughout; vLLM was unavailable in our environment, so no result mixes
-backends.
+fixed seed, so every reported number is deterministic. We use the tokenizer's chat
+template and left padding for batched generation. All runs use the
+\texttt{transformers} backend: vLLM was \emph{not installed} in our execution
+environment, so the code path that prefers vLLM never activated and no result
+mixes backends. Under greedy decoding accuracy is backend-independent; only
+wall-clock differs (\S\ref{sec:limitations}).
 
 \subsection{Perturbation probes}
 Each probe is a deterministic transformation of the problem text:
@@ -206,7 +213,7 @@ Each probe is a deterministic transformation of the problem text:
         numbers changed, exponents and power bases protected);
   \item \textbf{wording}: paraphrase the framing only, leaving physics and data
         bit-identical. This is the only variant whose reference answer remains
-        valid, so it is the only one for which we report a paired accuracy
+        valid, so it is the only one for which we report a paired correctness
         comparison;
   \item \textbf{swap}: exchange two distinct physical quantities, producing a
         physically inconsistent problem.
@@ -215,44 +222,50 @@ Because the correct answer to a \emph{numeric} or \emph{swap} variant is not
 directly computable, those variants are scored by the distribution of output
 change, and we report median and p90 rather than the mean (the sensitivity score
 $|\Delta|/(|base|+\epsilon)$ is dominated by outliers when the base answer is near
-zero).
+zero). The \emph{swap} probe covers only 36 of \nbSciBench{} problems, so its
+percentages are reported for completeness and carry no quantitative weight.
 
 \subsection{Causal tracing}
 The numeric quantities of a question are replaced by a semantically empty
 placeholder; the corrupted prompt is run; then the clean residual stream is
-restored at exactly one layer at a time, all other layers remaining corrupted.
-Restoration is applied during prefill only and never to decode steps, and clean
-and corrupted sequences are aligned from the right because they tokenise to
-different lengths. Only problems whose clean run was correct \emph{and} whose
-corrupted run lost score enter the recovery rate, which we report together with
-the skip counts.
+\emph{restored} at exactly one layer at a time, all other layers remaining
+corrupted. Restoration is applied during prefill only and never to decode steps,
+and clean and corrupted sequences are aligned from the right because they
+tokenise to different lengths. Only problems whose clean run was correct
+\emph{and} whose corrupted run lost score enter the recovery rate, which we report
+together with the skip counts.
 
 % ---------------------------------------------------------------- 4 Results
 \section{Results}
 \label{sec:results}
 
-\subsection{How large is the effect of prompting versus scale?}
+The stages below correspond to the project's Week~1--4 work plan (main table,
+perturbation probes, causal tracing, error attribution), plus two controls added
+during revision.
+
+\subsection{How large is the prompting effect relative to scale?}
 \label{sec:main}
 Table~\ref{tab:main} reports SciBench physics accuracy for all five models under
-both prompting conditions, with bootstrap 95\% confidence intervals and
-per-sub-domain breakdowns.
+both prompting conditions, with bootstrap 95\% confidence intervals.
 
 \input{table1_main.tex}
 
-Prompting dominates scale. For the Qwen2.5 family, chain-of-thought multiplies
-accuracy by \ratioThreeB$\times$, \ratioSevenB$\times$ and \ratioFourteenB$\times$
-at 3B, 7B and 14B, whereas doubling parameters from 7B to 14B adds only
-\gapFourteenVsSevenCot{} points (from \accCotSevenB\% to \accCotFourteenB\%).
-The benefit of chain-of-thought is moreover family-dependent rather than a law of
-nature: for Llama-3.1-8B the same comparison gives only
-\ratioLlamaEightB$\times$ (\accCotLlamaEightB\% vs \accDirLlamaEightB\%). Family
-effects can exceed scale effects --- the 3B Qwen model
-(\accCotThreeB\%) outperforms the 8B Llama model
-(\accCotLlamaEightB\%) --- which is why we report a spread of models rather than a
-single scaling curve. The reasoning-distilled model
-(DeepSeek-R1-Distill-Qwen-7B, \accCotROneSevenB\%) does not beat its
-same-size instruct sibling, which we attribute to the friction between long
-reasoning traces and this benchmark's terse numeric answer format.
+The effect of prompting exceeds the effect of doubling parameters, though the two
+are measured on different scales (a ratio versus a difference in points): for the
+Qwen2.5 family chain-of-thought multiplies accuracy by \ratioThreeB$\times$,
+\ratioSevenB$\times$ and \ratioFourteenB$\times$ at 3B, 7B and 14B, while going
+from 7B to 14B adds \gapFourteenVsSevenCot{} points
+(\accCotSevenB\% $\rightarrow$ \accCotFourteenB\%). The prompting benefit is
+family-dependent rather than a law of nature: for Llama-3.1-8B the same comparison
+gives only \ratioLlamaEightB$\times$ (\accCotLlamaEightB\% vs
+\accDirLlamaEightB\%), and family can outweigh size --- the 3B Qwen model
+(\accCotThreeB\%) outperforms the 8B Llama model (\accCotLlamaEightB\%). The
+reasoning-distilled model (DeepSeek-R1-Distill-Qwen-7B, \accCotROneSevenB\%) does
+not beat its same-size instruct sibling, which we attribute to friction between
+long reasoning traces and this benchmark's terse numeric answer format; we did not
+run it answer-only, because its instruction-tuned behaviour emits reasoning traces
+regardless of the prompt and a \emph{direct} comparison would not be
+like-for-like.
 
 \subsection{Is the model computing or retrieving?}
 \label{sec:sensitivity}
@@ -261,127 +274,169 @@ Table~\ref{tab:sensitivity} reports the three perturbation probes for four model
 \input{table2_sensitivity.tex}
 
 Changing the numbers moves the answer most of the time
-(\pctChangedSevenBNumeric\% of answers change for Qwen2.5-7B), so the input values
-do participate in the computation: the model is not a lookup table. However, a
-paraphrase that leaves physics and data bit-identical changes
-\pctChangedSevenBWording\% of answers with no measurable accuracy effect, and the
-pattern repeats across models (\pctChangedThreeBWording\%,
-\pctChangedFourteenBWording\%, \pctChangedLlamaEightBWording\%). Paired McNemar
-tests on the paraphrase variant are non-significant for every model
-($p=\pairPSevenB$, $p=\pairPFourteenB$, $p=\pairPThreeB$, $p=\pairPLlamaEightB$),
-so the flips are symmetric error jitter rather than a difficulty increase. The
-magnitude of the response to \emph{numeric} changes also tracks accuracy within
-the Qwen family (\pctChangedThreeBNumeric\% $\rightarrow$
-\pctChangedSevenBNumeric\% $\rightarrow$ \pctChangedFourteenBNumeric\%), with
-Llama-3.1-8B the least responsive (\pctChangedLlamaEightBNumeric\%) and the least
-accurate. Figure~\ref{fig:sensitivity} visualises this contrast.
+(\pctChangedSevenBNumeric\% for Qwen2.5-7B), so the stated values do participate
+in the computation: the model is not a lookup table. A paraphrase that leaves
+physics and data bit-identical changes \pctChangedSevenBWording\% of answers, and
+the pattern repeats across models (\pctChangedThreeBWording\%,
+\pctChangedFourteenBWording\%, \pctChangedLlamaEightBWording\%);
+Figure~\ref{fig:sensitivity} visualises the contrast.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=.72\linewidth]{sensitivity_comparison.png}
   \caption{Share of final answers that change when physical values are rescaled
            (\emph{numeric}) versus when only the phrasing is rewritten
-           (\emph{wording}). The paraphrase bar is non-zero for every model, which
-           is the paper's central robustness observation.}
+           (\emph{wording}). 305 and 240 items respectively, out of \nbSciBench{}.
+           The paraphrase bar is non-zero for every model, which is the paper's
+           central robustness observation.}
   \label{fig:sensitivity}
 \end{figure}
 
-\subsection{If it computes, where --- and is the output on the same pathway?}
+Crucially, ``changing the answer'' is not the same as ``changing correctness''.
+Table~\ref{tab:wording-2x2} scores the paraphrase variants against the reference
+and reports the paired 2$\times$2 counts: for Qwen2.5-7B only \nbWordingFlips{} of
+240 items cross the correct/incorrect boundary (\nbRightToWrong{} correct
+$\rightarrow$ wrong, \nbWrongToRight{} wrong $\rightarrow$ correct; exact McNemar
+$p=\pWordingExact$), and the pattern is the same for the other three models. We
+therefore state the weaker and better-supported claim: we detect no systematic
+shift in correctness, and the discordant pairs are roughly balanced. The
+paraphrase instability is real, but it is \emph{value-level wandering} rather than
+a systematic loss of competence --- a distinction that a single accuracy number
+hides entirely.
+
+\input{table8_wording_2x2.tex}
+
+\subsection{Where is the computation, and is the output on the same pathway?}
 \label{sec:causal}
 Table~\ref{tab:causal} locates the computation in depth.
-Of \nbCausalAttempts{} attempted problems, \nbCausalValid{} satisfy the strict
-inclusion rule (\nbCausalCleanWrong{} skipped as clean-wrong, \nbCausalFlat{} as
-corruption-flat). Recovery peaks at layer \peakLayer{} of \nbLayers{}
-($+\peakRecovery$), plateaus over the early-middle layers and collapses after
-layer 18 (Figure~\ref{fig:causal}).
 
 \input{table3_causal.tex}
+
+\paragraph{Scope.}
+Of \nbCausalAttempts{} attempted problems, only \nbCausalValid{} satisfy the
+strict inclusion rule (\nbCausalCleanWrong{} skipped as clean-wrong,
+\nbCausalFlat{} as corruption-flat). This subset is strongly selected: it consists
+of problems the model \emph{already solves}. Every statement in this subsection is
+therefore scoped to solvable problems, not to the benchmark as a whole.
+
+\paragraph{A band, not a peak.}
+Recovery rises across the early-middle layers and collapses after layer 18
+(Figure~\ref{fig:causal}). The point estimate is maximal at layer \peakLayer{}
+($+\peakRecovery$), but the bootstrap 95\% CI on that mean is
+$[+\peakCiLo, +\peakCiHi]$ and a paired bootstrap over problems cannot separate it
+from \nbNonseparableLayers{} other layers inside the plateau. We therefore claim a
+recoverable \emph{range} (roughly layers 4--16) rather than a single peak layer;
+only layers beyond $\sim$18, and the embedding region (whose variance is an order
+of magnitude larger), are clearly distinguishable.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=.72\linewidth]{causal_tracing_Qwen2.5-7B.png}
   \caption{Recovery rate as a function of the restored layer, with $\pm1$ standard
-           deviation across problems. Behaviour is recoverable mainly from the
-           early-middle layers.}
+           deviation across problems. The dotted line at zero is the corrupted
+           (no-restore) baseline, so the height above it is what restoration buys.
+           Behaviour is recoverable over an early-middle band.}
   \label{fig:causal}
 \end{figure}
 
-Restoring a clean state at a layer is only defined for problems whose clean run is
-correct, so this curve cannot tell us whether layer patching could \emph{rescue}
-failures. To separate the two questions we instrument all
-\nbAllAttempts{} attempted problems and record two outcomes at every restore
-point: whether the model emits a parseable number (output execution) and whether
-that number is correct (semantics). Table~\ref{tab:layer-parse-acc} shows the
-result, split by whether the clean run was correct.
+\paragraph{Relation to factual-recall localisation.}
+In factual-recall tracing the recoverable signal typically occupies the middle of
+the network. Our plateau (layers 4--16 of \nbLayers, i.e.\ roughly the first half)
+sits \emph{earlier} than that. Two differences plausibly explain the discrepancy.
+First, our corruption replaces \emph{numerical quantities} with a placeholder,
+whereas factual-recall protocols replace a \emph{named subject}; collapsing the
+numeric input removes information that has to be re-encoded early, so restoration
+must intervene early. Second, the target here is a derived scalar rather than a
+retrieved attribute, so the computation is spread over more layers. These are
+hypotheses consistent with our data, not findings we can establish without
+additional corruption types.
+
+\paragraph{Separating execution from semantics.}
+Restoring a clean state is only defined for problems whose clean run is correct,
+so the recovery curve above cannot tell us whether restoration could \emph{rescue}
+failures. We therefore instrument all \nbAllAttempts{} attempted problems and
+record two outcomes at every restore point: whether the model emits a parseable
+number (output execution) and whether that number is correct (semantics).
+Table~\ref{tab:layer-parse-acc} shows the result, split by clean-run correctness.
 
 \input{table6_layer_parse_vs_acc.tex}
 
-Parseability is essentially layer-invariant: it is \pctParseCorrupt\% even for the
-corrupted baseline and stays within \pctParseMin--\pctParseMax\% at every restore
-point. The model always emits a number; corruption never makes it decline.
-Correctness, by contrast, depends on the restored depth: for the
-\nbCleanCorrect{} problems the clean run solves, restoration recovers up to
-\pctAccCleanCorrectBest\% of them, whereas for the \nbCleanWrong{} problems it
-cannot, never exceeding \pctAccCleanWrongBest\% at any single layer. The two
-pathways are therefore distinct --- and, importantly, the failures are capability
-limits rather than misplaced representations that a layer patch could repair.
+Parseability is essentially layer-invariant: \pctParseCorrupt\% even for the
+corrupted baseline, and \pctParseMin--\pctParseMax\% at every restore point. The
+model always emits a number; corruption never makes it decline. Correctness, by
+contrast, depends on the restored depth: for the \nbCleanCorrect{} problems the
+clean run solves, restoration recovers \nbCleanCorrectK{} of them
+(\pctAccCleanCorrectBest\%, Wilson 95\% CI $[\wilsonCcLo, \wilsonCcHi]$) at the
+best layer --- suggestive but imprecise at this sample size; for the
+\nbCleanWrong{} problems it never exceeds \pctAccCleanWrongBest\% at any layer.
+The two pathways are therefore distinct, and the failures are capability limits
+rather than misplaced representations that a patch could repair.
 
 \subsection{Knowledge or execution? A format control}
 \label{sec:cross}
-Table~\ref{tab:cross-task} holds the model and the subject domain fixed and varies
-only the answer format. The same Qwen2.5-7B gets \accMMLU\% of \nbMMLU{}
-multiple-choice physics items right but only \accCotSevenB\% when it must produce
-the number itself. Since the multiple-choice items test the same physics, missing
-knowledge cannot be the explanation: the knowledge is retrievable, the numerical
-execution is not.
+Table~\ref{tab:cross-task} holds the model and the subject matter fixed and varies
+only the answer format.
 
 \input{table5_cross_task.tex}
 
-OlympiadBench provides a second free-response benchmark: accuracy rises from
-\accOlySevenB\% to \accOlyFourteenB\% with scale (+ \gapOlyFourteenVsSeven{}
-points), consistent in direction with SciBench, but its
-\pctOlympiadScorable\% gradable coverage is biased towards simpler items and is
-therefore never compared numerically against SciBench.
+The same Qwen2.5-7B gets \accMMLU\% of \nbMMLU{} multiple-choice physics items
+right but only \accCotSevenB\% when it must produce the number itself. Since the
+multiple-choice items test the same physics, missing knowledge cannot be the
+explanation: the knowledge is retrievable, the numerical execution is not.
+
+OlympiadBench is used \emph{only} to check the direction of the scale trend:
+accuracy rises from \accOlySevenB\% to \accOlyFourteenB\% (+\gapOlyFourteenVsSeven{}
+points), consistent with SciBench. Because its \pctOlympiadScorable\% gradable
+coverage is biased towards items with clean scalar answers, we make no
+absolute-level claim from this benchmark and never compare its values numerically
+against SciBench; per-sub-domain counts are so small (six gradable optics items,
+all incorrect) that we do not interpret them.
 
 \subsection{Which stage fails, and can we tell reliably?}
 \label{sec:errors}
-We annotated every SciBench chain-of-thought error with a three-way scheme ---
-E1 wrong physical law, E2 algebraic/arithmetic/unit error, E3 violated constraint
---- and repeated the annotation with a second, cross-family judge on the same
-samples.
+We annotated every SciBench chain-of-thought error with a three-way scheme --- E1
+wrong physical law, E2 algebraic/arithmetic/unit error, E3 violated constraint ---
+and repeated the annotation with a second, cross-family judge on the same samples.
 
 \input{table4_errors.tex}
 
-Under both judges E2 dominates and E3 stays small, and the 7B/14B distributions do
-not differ significantly, i.e.\ the larger model gets more problems right rather
-than failing differently. This matches the format control above: the bottleneck is
-execution, not physical knowledge.
+Under \emph{both} judges E2 is the modal category and E3 stays small, and the
+7B/14B distributions do not differ significantly under either labelling
+(same-family $\chi^2=\chiSameFamily$, $p=\pChiSameFamily$; cross-family
+$\chi^2=\chiCrossFamily$, $p=\pChiCrossFamily$). The larger model therefore gets
+more problems right rather than failing differently, which matches the format
+control: the bottleneck is execution, not physical knowledge.
 
-Agreement between the two judges is, however, only
-$\kappa=\kappaAnnotators$ (\pctAgreeAnnotators\% raw agreement over
-\nbAnnotated{} samples). The precise E1/E2 split is therefore \emph{annotator
-dependent}: applying the wrong law usually also produces wrong arithmetic, so the
-observable text is consistent with either label. We report the coarse,
-annotator-robust statement only, and treat the disagreement as a finding about
-error taxonomies rather than as an inconvenience (\S\ref{sec:discussion}).
+Agreement between the judges is, however, only $\kappa=\kappaAnnotators$
+(\pctAgreeAnnotators\% raw agreement, $\kappa_w=\kappaLinearWeighted$ linearly
+weighted). The per-class picture explains why: on E2 the judges agree
+\pctAgreeEtwo\% of the time, on E1 only \pctAgreeEone\%. Applying the wrong law
+usually also produces wrong arithmetic, so the observable text is consistent with
+either label. We consequently report only the annotator-robust statement (modal
+category E2, small E3, no 7B/14B difference) and treat the disagreement as a
+finding about error taxonomies rather than as an inconvenience
+(\S\ref{sec:discussion}).
 
 \subsection{Can prompt scaffolding repair the instability?}
 \label{sec:scaffold}
 If the paraphrase instability were caused by a missing solution scaffold, telling
 the model to write down the knowns and unknowns explicitly should help. At a
-matched token budget on the same \nbScafCot{} problems, it changes accuracy from
-\accScafCot\% to \accScafStruct\% (\scafDeltaPP{} points, McNemar
-$p=\scafP$) --- no reliable gain (Table~\ref{tab:scaffold}). Prompt-level
-scaffolding does not substitute for capability.
+matched token budget on the same \nbScafCot{} problems it changes accuracy from
+\accScafCot\% to \accScafStruct\% (\scafDeltaPP{} points, McNemar $p=\scafP$)
+--- no reliable gain (Table~\ref{tab:scaffold}).
 
 \input{table7_prompt_scaffold.tex}
 
-The same table exposes a separate measurement limitation worth flagging: between
-\pctNoAnswerCot\% and \pctNoAnswerStruct\% of outputs ignore the explicitly
-requested \texttt{ANSWER:} line and are graded through the fallback extractor.
-Output lengths stay far below the token budget, so this is a format-compliance
-failure, not truncation, and accuracy is statistically indistinguishable between
-compliant and non-compliant outputs.
+\subsection{An output-format ceiling}
+\label{sec:format}
+One limitation deserves separate mention because it caps what any strict-format
+evaluation can see. Between \pctNoAnswerCot\% and \pctNoAnswerStruct\% of outputs
+never emit the requested \texttt{ANSWER:} line and are graded by the fallback
+extractor (``last number on the last line''). Output lengths stay far below the
+token budget, so this is a format-compliance failure rather than truncation, and
+accuracy is statistically indistinguishable between compliant and non-compliant
+outputs (Table~\ref{tab:scaffold}) --- but an evaluation that insisted on the
+format would report a lower ceiling than ours.
 
 % ---------------------------------------------------------------- 5 Discussion
 \input{discussion.tex}
@@ -389,21 +444,39 @@ compliant and non-compliant outputs.
 % ---------------------------------------------------------------- 6 Limitations
 \section{Limitations}
 \label{sec:limitations}
-All numbers come from a single GPU class and a \texttt{transformers} backend without
-continuous batching, so wall-clock times are not comparable to a vLLM deployment,
-although greedy decoding makes the accuracies backend-independent. Causal tracing
-covers one open-weight model and the strict-inclusion subset
-(\nbCausalValid{} of \nbCausalAttempts{}), so layer localisation is a qualitative
-early-middle pattern rather than a precise per-layer estimate. OlympiadBench
-numbers refer to the \pctOlympiadScorable\% of problems with numerically gradable
-references. Error-type shares are annotator-dependent
-($\kappa=\kappaAnnotators$) and are therefore reported coarsely. The paraphrase
-probe uses deterministic rule-based rewriting; a model-generated paraphrase would
-be stronger but introduces rewrite quality as a confound. Finally, prompt-level
-scaffolding was tested with one prompt design at one budget, so its null result is
-evidence against, not proof of impossibility.
+\paragraph{Statistics of the causal probe.}
+The causal analysis rests on \nbCausalValid{} strictly-included problems, and the
+layer-parse analysis on \nbCleanCorrect{} correct-baseline problems. Both are
+small: we report bootstrap intervals for the recovery curve and Wilson intervals
+for the small proportions, we do not claim a single peak layer, and we scope the
+conclusions to problems the model can already solve.
+\paragraph{Annotator dependence.}
+Error-type shares are annotator-dependent ($\kappa=\kappaAnnotators$,
+$\kappa_w=\kappaLinearWeighted$) and are reported coarsely for that reason. The
+cross-family judge is still an LLM, so this is a check against family-specific
+bias, not a substitute for human annotation.
+\paragraph{Benchmark coverage.}
+OlympiadBench numbers refer to the \pctOlympiadScorable\% of problems with
+numerically gradable references and are used only for the direction of the scale
+trend.
+\paragraph{Backend and hardware.}
+All runs use a single A800-80G with the \texttt{transformers} backend and no
+continuous batching, so wall-clock times are not comparable to a vLLM deployment;
+greedy decoding makes accuracies backend-independent.
+\paragraph{Probe construction.}
+The paraphrase probe uses deterministic rule-based rewriting; a model-generated
+paraphrase would be stronger but introduces rewrite quality as a confound. The
+scaffolding probe used one prompt design at one budget, so its null result is
+evidence against that intervention, not proof of impossibility. Finally, all
+models are evaluated zero-shot with a single fixed prompt per condition; prompt
+sensitivity is itself one of the phenomena measured, so no per-model prompt tuning
+is performed.
 
-% ---------------------------------------------------------------- 7 Repro
+% ---------------------------------------------------------------- Appendices
+\appendix
+\input{appendix.tex}
+
+% ---------------------------------------------------------------- Repro
 \input{reproducibility_statement.tex}
 
 \section*{Acknowledgements}

@@ -1,0 +1,456 @@
+{
+  "M1_layer_ci": {
+    "n_valid": 14,
+    "n_layers": 28,
+    "layer_step": 2,
+    "curve": [
+      {
+        "layer": 0,
+        "mean": 0.447,
+        "lo": -0.0854,
+        "hi": 0.8358
+      },
+      {
+        "layer": 2,
+        "mean": 0.4247,
+        "lo": -0.1071,
+        "hi": 0.808
+      },
+      {
+        "layer": 4,
+        "mean": 0.574,
+        "lo": 0.3277,
+        "hi": 0.8048
+      },
+      {
+        "layer": 6,
+        "mean": 0.5876,
+        "lo": 0.3585,
+        "hi": 0.8009
+      },
+      {
+        "layer": 8,
+        "mean": 0.8365,
+        "lo": 0.6945,
+        "hi": 0.953
+      },
+      {
+        "layer": 10,
+        "mean": 0.6983,
+        "lo": 0.4928,
+        "hi": 0.8806
+      },
+      {
+        "layer": 12,
+        "mean": 0.5881,
+        "lo": 0.3143,
+        "hi": 0.8607
+      },
+      {
+        "layer": 14,
+        "mean": 0.6531,
+        "lo": 0.4291,
+        "hi": 0.8595
+      },
+      {
+        "layer": 16,
+        "mean": 0.5174,
+        "lo": 0.2816,
+        "hi": 0.755
+      },
+      {
+        "layer": 18,
+        "mean": 0.4205,
+        "lo": 0.2092,
+        "hi": 0.6368
+      },
+      {
+        "layer": 20,
+        "mean": 0.1982,
+        "lo": 0.0038,
+        "hi": 0.419
+      },
+      {
+        "layer": 22,
+        "mean": 0.095,
+        "lo": 0.0003,
+        "hi": 0.2151
+      },
+      {
+        "layer": 24,
+        "mean": 0.0423,
+        "lo": 0.0,
+        "hi": 0.1289
+      },
+      {
+        "layer": 26,
+        "mean": 0.0776,
+        "lo": 0.0,
+        "hi": 0.1931
+      }
+    ],
+    "peak_layer": 8,
+    "peak_mean": 0.8365,
+    "peak_ci": [
+      0.6945,
+      0.953
+    ],
+    "peak_vs_others": {
+      "0": {
+        "diff": 0.3895,
+        "lo": -0.0241,
+        "hi": 0.9277,
+        "significant": false
+      },
+      "2": {
+        "diff": 0.4118,
+        "lo": 0.0052,
+        "hi": 0.9481,
+        "significant": true
+      },
+      "4": {
+        "diff": 0.2625,
+        "lo": -0.0061,
+        "hi": 0.5218,
+        "significant": false
+      },
+      "6": {
+        "diff": 0.2489,
+        "lo": -0.0058,
+        "hi": 0.5124,
+        "significant": false
+      },
+      "10": {
+        "diff": 0.1382,
+        "lo": -0.0856,
+        "hi": 0.3723,
+        "significant": false
+      },
+      "12": {
+        "diff": 0.2484,
+        "lo": -0.028,
+        "hi": 0.5343,
+        "significant": false
+      },
+      "14": {
+        "diff": 0.1834,
+        "lo": -0.0647,
+        "hi": 0.4317,
+        "significant": false
+      },
+      "16": {
+        "diff": 0.3191,
+        "lo": 0.0304,
+        "hi": 0.5757,
+        "significant": true
+      },
+      "18": {
+        "diff": 0.416,
+        "lo": 0.1689,
+        "hi": 0.6536,
+        "significant": true
+      },
+      "20": {
+        "diff": 0.6383,
+        "lo": 0.3869,
+        "hi": 0.8633,
+        "significant": true
+      },
+      "22": {
+        "diff": 0.7415,
+        "lo": 0.5598,
+        "hi": 0.8958,
+        "significant": true
+      },
+      "24": {
+        "diff": 0.7942,
+        "lo": 0.6263,
+        "hi": 0.9337,
+        "significant": true
+      },
+      "26": {
+        "diff": 0.7589,
+        "lo": 0.5874,
+        "hi": 0.9101,
+        "significant": true
+      }
+    },
+    "n_layers_where_peak_not_separable": 6
+  },
+  "M3_wording_2x2": {
+    "model": "Qwen2.5-7B-Instruct",
+    "counts": {
+      "both_right": 19,
+      "right_to_wrong": 1,
+      "wrong_to_right": 4,
+      "both_wrong": 216
+    },
+    "n_flips": 5,
+    "mcnemar_exact_p": 0.375
+  },
+  "M3_wording_2x2_all_models": {
+    "Qwen2.5-3B-Instruct": {
+      "model": "Qwen2.5-3B-Instruct",
+      "counts": {
+        "both_right": 8,
+        "right_to_wrong": 5,
+        "wrong_to_right": 5,
+        "both_wrong": 222
+      },
+      "n_flips": 10,
+      "mcnemar_exact_p": 1.0
+    },
+    "Qwen2.5-7B-Instruct": {
+      "model": "Qwen2.5-7B-Instruct",
+      "counts": {
+        "both_right": 19,
+        "right_to_wrong": 1,
+        "wrong_to_right": 4,
+        "both_wrong": 216
+      },
+      "n_flips": 5,
+      "mcnemar_exact_p": 0.375
+    },
+    "Qwen2.5-14B-Instruct": {
+      "model": "Qwen2.5-14B-Instruct",
+      "counts": {
+        "both_right": 27,
+        "right_to_wrong": 1,
+        "wrong_to_right": 6,
+        "both_wrong": 206
+      },
+      "n_flips": 7,
+      "mcnemar_exact_p": 0.125
+    },
+    "Meta-Llama-3.1-8B-Instruct": {
+      "model": "Meta-Llama-3.1-8B-Instruct",
+      "counts": {
+        "both_right": 19,
+        "right_to_wrong": 1,
+        "wrong_to_right": 0,
+        "both_wrong": 220
+      },
+      "n_flips": 1,
+      "mcnemar_exact_p": 1.0
+    }
+  },
+  "M4_error_chi2_by_annotator": {
+    "same_family_qwen14b": {
+      "sevenB": {
+        "E1": 75,
+        "E2": 147,
+        "E3": 26,
+        "N": 7
+      },
+      "fourteenB": {
+        "E1": 54,
+        "E2": 156,
+        "E3": 20,
+        "N": 10
+      },
+      "chi2": 4.5476,
+      "p": 0.2081,
+      "dof": 3
+    },
+    "cross_family_llama8b": {
+      "sevenB": {
+        "E1": 23,
+        "E2": 209,
+        "E3": 23,
+        "N": 0
+      },
+      "fourteenB": {
+        "E1": 18,
+        "E2": 205,
+        "E3": 17,
+        "N": 0
+      },
+      "chi2": 1.0949,
+      "p": 0.7783,
+      "dof": 3
+    }
+  },
+  "kappa_details": {
+    "n": 495,
+    "cohens_kappa": 0.1328,
+    "linear_weighted_kappa": 0.1178,
+    "per_class": {
+      "E1": {
+        "annotator_a": 41,
+        "annotator_b": 129,
+        "both": 20,
+        "agreement_given_a": 0.155
+      },
+      "E2": {
+        "annotator_a": 414,
+        "annotator_b": 303,
+        "both": 267,
+        "agreement_given_a": 0.881
+      },
+      "E3": {
+        "annotator_a": 40,
+        "annotator_b": 46,
+        "both": 11,
+        "agreement_given_a": 0.239
+      },
+      "N": {
+        "annotator_a": 0,
+        "annotator_b": 17,
+        "both": 0,
+        "agreement_given_a": 0.0
+      }
+    }
+  },
+  "wilson_small_n": {
+    "clean_correct": {
+      "n": 10,
+      "best_layer": 0,
+      "best_rate": 0.7,
+      "k": 7,
+      "wilson95": [
+        0.397,
+        0.892
+      ],
+      "all_layers": [
+        {
+          "layer": 0,
+          "rate": 0.7,
+          "k": 7,
+          "wilson": [
+            0.397,
+            0.892
+          ]
+        },
+        {
+          "layer": 4,
+          "rate": 0.4,
+          "k": 4,
+          "wilson": [
+            0.168,
+            0.687
+          ]
+        },
+        {
+          "layer": 8,
+          "rate": 0.5,
+          "k": 5,
+          "wilson": [
+            0.237,
+            0.763
+          ]
+        },
+        {
+          "layer": 12,
+          "rate": 0.7,
+          "k": 7,
+          "wilson": [
+            0.397,
+            0.892
+          ]
+        },
+        {
+          "layer": 16,
+          "rate": 0.6,
+          "k": 6,
+          "wilson": [
+            0.313,
+            0.832
+          ]
+        },
+        {
+          "layer": 20,
+          "rate": 0.3,
+          "k": 3,
+          "wilson": [
+            0.108,
+            0.603
+          ]
+        },
+        {
+          "layer": 24,
+          "rate": 0.1,
+          "k": 1,
+          "wilson": [
+            0.018,
+            0.404
+          ]
+        }
+      ]
+    },
+    "clean_wrong": {
+      "n": 90,
+      "best_layer": 4,
+      "best_rate": 0.0333,
+      "k": 3,
+      "wilson95": [
+        0.011,
+        0.093
+      ],
+      "all_layers": [
+        {
+          "layer": 0,
+          "rate": 0.0111,
+          "k": 1,
+          "wilson": [
+            0.002,
+            0.06
+          ]
+        },
+        {
+          "layer": 4,
+          "rate": 0.0333,
+          "k": 3,
+          "wilson": [
+            0.011,
+            0.093
+          ]
+        },
+        {
+          "layer": 8,
+          "rate": 0.0,
+          "k": 0,
+          "wilson": [
+            0.0,
+            0.041
+          ]
+        },
+        {
+          "layer": 12,
+          "rate": 0.0,
+          "k": 0,
+          "wilson": [
+            0.0,
+            0.041
+          ]
+        },
+        {
+          "layer": 16,
+          "rate": 0.0333,
+          "k": 3,
+          "wilson": [
+            0.011,
+            0.093
+          ]
+        },
+        {
+          "layer": 20,
+          "rate": 0.0222,
+          "k": 2,
+          "wilson": [
+            0.006,
+            0.077
+          ]
+        },
+        {
+          "layer": 24,
+          "rate": 0.0,
+          "k": 0,
+          "wilson": [
+            0.0,
+            0.041
+          ]
+        }
+      ]
+    }
+  }
+}

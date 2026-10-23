@@ -1,0 +1,27 @@
+% 由 scripts/make_paper_tables.py 从 results/paper_stats.json 生成，请勿手改
+\begin{table}[t]
+  \centering
+  \caption{Paraphrase variants scored for \emph{correctness}: 2$\times$2 paired counts.
+           The perturbation rewrites phrasing only, so the reference answer stays valid
+           and a paired comparison is meaningful. Very few items cross the
+           correct/incorrect boundary, and the two directions are of similar size, i.e.\ we
+           do not detect a systematic shift (exact McNemar test on the discordant pairs).}
+  \label{tab:wording-2x2}
+  \small
+  \begin{tabular}{@{}l c c c c c@{}}
+    \toprule
+    \textbf{Model} & \textbf{both correct} & \textbf{correct$\to$wrong} &
+      \textbf{wrong$\to$correct} & \textbf{n discordant} & \textbf{exact $p$} \\
+    \midrule
+    Qwen2.5-3B & 8 & 5 & 5 & 10 & 1.000 \\
+    Qwen2.5-7B & 19 & 1 & 4 & 5 & 0.375 \\
+    Qwen2.5-14B & 27 & 1 & 6 & 7 & 0.125 \\
+    Llama-3.1-8B & 19 & 1 & 0 & 1 & 1.000 \\
+    \bottomrule
+  \end{tabular}
+  \vspace{2pt}
+  \parbox{\linewidth}{\footnotesize 240 items per model (the paraphrase coverage). A
+  value can change without changing correctness: the much larger `changed answer' rate
+  in Table~\ref{tab:sensitivity} counts value changes, whereas this table counts only
+  changes that cross the correctness boundary.}
+\end{table}

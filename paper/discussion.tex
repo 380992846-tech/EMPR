@@ -1,84 +1,96 @@
 % ==========================================================================
-% EMPR · Discussion（含"错误分类体系不确定性"这一评估局限洞见）
-% 英文，可直接粘进论文 Discussion 章节。
-% 数字对应仓库 commit 中的实跑结果：
-%   - 两位标注器（Qwen2.5-14B 同族 / Llama-3.1-8B 异族）在 495 条错误样本上
-%     观测一致率 60.2%，Cohen's kappa = 0.133
-%   - 两位标注器都认定 E2（代数/计算）为主类别，E3 稳定在 8-9%
+% EMPR · Discussion
+% 数字全部走 paper/numbers.tex 的宏（由 results/ 生成），本文件不手抄任何数字。
 % ==========================================================================
 \section{Discussion}
 \label{sec:discussion}
 
+\paragraph{From a binary question to a third regime.}
+We opened with ``compute or retrieve?'' because it makes falsifiable predictions.
+The data reject both endpoints and support a third regime. A pure retrieval story
+predicts insensitivity to numerical values and high sensitivity to surface form; a
+pure computation story predicts the opposite. We observe \emph{both} sensitivities
+at once: rescaled values move \pctChangedSevenBNumeric\% of answers (so the values
+are used), and a semantics-preserving paraphrase moves
+\pctChangedSevenBWording\% (so surface form is also used). The additional
+separation we introduce --- counting only changes that cross the
+correct/incorrect boundary --- shows that the paraphrase effect is
+\emph{value-level}: just \nbWordingFlips{} of 240 items change correctness, with
+discordant pairs roughly balanced. We therefore name the regime
+\emph{surface-conditioned computation}: the model computes, its computation depends
+on irrelevant phrasing, and its outputs wander within a band that mostly keeps
+correctness fixed. Calling this ``reasoning failure'' or ``retrieval'' would both
+misdescribe it.
+
 \paragraph{What the evidence jointly supports.}
-Four independent probes converge on the same reading of open-weight LLM physics
-performance. (i) Accuracy on SciBench physics tops out at 25.7\% for the largest
-model we ran and gains only $+4.6$ percentage points from a two-fold parameter
-increase, while chain-of-thought prompting roughly doubles accuracy
-(2.2--2.4$\times$ for the Qwen family) --- prompting matters more than scale.
-(ii) The same model reaches 66.6\% on multiple-choice MMLU physics but only
-21.1\% when it must produce the number itself, which rules out the "no physics
-knowledge" explanation: the knowledge is present and retrievable, the numerical
-execution is not. (iii) A perturbation that leaves physics and data bit-identical
-and only rewrites surface phrasing flips 24\%--34\% of final answers in every
-model we tested, without changing accuracy on average, i.e.\ the flips are
-symmetric error jitter rather than a difficulty effect. (iv) Restoring clean
-residual states recovers behaviour mainly from the early-middle layers
-(peak at layer 8 of 28, plateau over layers 4--16) and collapses after layer 18.
-(v) Splitting output execution from semantic correctness separates the two
-pathways: parseability is essentially layer-invariant (96\% even under
-corruption, 97--100\% at every restored layer), whereas correctness tracks the
-restored depth --- recovering to 70\% at layers 0/12 for problems the model can
-solve, but never above 3.3\% at any layer for the 90 problems it cannot solve.
-Taken together: outputs are produced by computation, but the computation is not
-a stable physical solver --- it is surface-conditioned pattern matching with a
-fragile arithmetic tail, and the failures are capability limits rather than
-misplaced representations that a layer patch could repair.
+Five probes converge on one reading. (i) Accuracy on SciBench physics tops out at
+\accCotFourteenB\% for the largest model we ran and gains only
+\gapFourteenVsSevenCot{} points from a two-fold parameter increase, while
+chain-of-thought multiplies accuracy by \ratioThreeB--\ratioFourteenB$\times$ for
+the Qwen family --- prompting outweighs scale in this setting. (ii) The same model
+reaches \accMMLU\% on multiple-choice MMLU physics but only \accCotSevenB\% when it
+must produce the number itself, which rules out missing knowledge: it is present
+and retrievable, while numerical execution is not. (iii) The paraphrase
+instability described above is model-generic
+(\pctChangedThreeBWording\%, \pctChangedFourteenBWording\%,
+\pctChangedLlamaEightBWording\% in the other three models) and is value-level
+rather than correctness-level. (iv) Restoring clean residual states recovers
+behaviour over an early-middle band (layers 4--16 of \nbLayers) that we can
+localise as a range but not as a single peak, and the recovery collapses after
+layer 18. (v) Separating output execution from correctness shows parseability is
+layer-invariant (\pctParseCorrupt\% even under corruption) while correctness is
+depth-dependent, and on problems the model cannot solve restoration never exceeds
+\pctAccCleanWrongBest\% at any single layer. The failures are capability limits,
+not misplaced representations that a layer patch could repair.
 
 \paragraph{Why the error taxonomy is itself uncertain (and why that is a
 contribution).}
-Our cross-annotator agreement ($\kappa = 0.133$, 60.2\% raw agreement over 495
-samples) is low, and this is not merely a nuisance for our own error analysis ---
-it reveals a fundamental limitation of the error taxonomy itself: the boundary
-between ``misapplying a physical law'' (E1) and ``algebraic miscalculation''
-(E2) is inherently ambiguous, even for strong LLMs. When a model applies the
-wrong law, the resulting arithmetic is also wrong, so the observable output is
-consistent with either label; conversely, an arithmetic slip inside a correct
-derivation is textually indistinguishable from a mis-selected relation. We
-therefore report only the coarse, annotator-robust statement --- E2 dominates and
-E3 is rare under \emph{both} judges --- and deliberately do not quote precise
-category percentages. This suggests that evaluating AI reasoning purely through
-coarse-grained error categories is insufficient: taxonomy-based error analysis
-inherits an annotator-dependent ceiling that is invisible unless agreement is
-measured. We release our dual-annotated sample (495 wrong answers from two
-models, each labelled independently by a same-family judge and a cross-family
-judge) as a benchmark resource not only for physics reasoning, but for future
-work on the robustness of LLM-as-a-Judge error attribution, where the
-\emph{disagreement} between judges is the signal rather than noise.
+Our cross-annotator agreement ($\kappa=\kappaAnnotators$, $\kappa_w=\kappaLinearWeighted$
+linearly weighted, \pctAgreeAnnotators\% raw agreement over \nbAnnotated{} samples)
+is low, and this is not merely a nuisance for our own analysis --- it reveals a
+fundamental limitation of the taxonomy itself. The per-class breakdown is
+diagnostic: the judges agree \pctAgreeEtwo\% of the time on E2 but only
+\pctAgreeEone\% on E1. That is exactly what one expects if the boundary between
+``misapplying a physical law'' and ``algebraic miscalculation'' is intrinsically
+ambiguous: when a model applies the wrong law, the resulting arithmetic is wrong
+too, so the observable text is consistent with either label. We therefore report
+only the coarse, annotator-robust statements --- E2 is the modal category under
+both judges, E3 is rare, and 7B/14B do not differ under either labelling
+($p=\pChiSameFamily$ same-family, $p=\pChiCrossFamily$ cross-family) --- and
+deliberately do not quote precise category shares. This suggests that evaluating
+reasoning purely through coarse error categories is insufficient: taxonomy-based
+analysis inherits an annotator-dependent ceiling that stays invisible unless
+agreement is measured. We release our dual-annotated sample (\nbAnnotated{} wrong
+answers from two models, each labelled independently by a same-family and a
+cross-family judge) as a resource not only for physics reasoning but for research
+on LLM-as-a-judge attribution, where the \emph{disagreement} between judges is the
+signal rather than noise.
 
 \paragraph{Implications for mitigation.}
-Two of our findings are directly actionable. First, since the dominant failure
-mode is arithmetic rather than physical (E2), the highest-leverage interventions
-are execution-side --- tool use / code interpreters, or explicit symbolic
-bookkeeping --- rather than more physical pre-training data. Second, since 24\%--
-34\% of answers move under a semantics-preserving paraphrase, single-prompt
-evaluation understates the variance of a model's competence; reporting
-paraphrase-consistency alongside accuracy is a cheap and informative robustness
-metric. We also tested whether the instability is recoverable at inference time by
-adding structural scaffolding to the prompt (requiring the knowns and unknowns to
-be written down explicitly). At a matched token budget on the same 150 problems it
-changes accuracy by $+2.0$ percentage points (McNemar $p=0.70$): prompt-level
-scaffolding does \emph{not} substitute for capability, so the mitigation has to be
-execution-side (tools), not wording-side.
+Two findings are directly actionable. First, since the dominant failure mode is
+arithmetic rather than physical (E2), the highest-leverage interventions are
+execution-side --- tool use, code interpreters, or explicit symbolic bookkeeping
+--- rather than more physical pre-training data. Second, since
+\pctChangedSevenBWording\% of answers move under a semantics-preserving paraphrase,
+single-prompt evaluation understates the variance of a model's competence;
+reporting paraphrase-consistency alongside accuracy is a cheap and informative
+robustness metric. We also tested whether the instability is recoverable at
+inference time by adding structural scaffolding to the prompt: at a matched token
+budget the change is \scafDeltaPP{} points (McNemar $p=\scafP$), so prompt-level
+scaffolding does not substitute for capability, which further argues that the
+mitigation has to be execution-side rather than wording-side.
 
 \paragraph{Threats to validity.}
-All numbers come from a single GPU class (A800-80G) and a transformers backend
-without continuous batching, so wall-clock times are not comparable to vLLM
-setups, although the accuracy numbers are backend-independent given greedy
-decoding. Causal tracing is limited to one open-weight model and to the subset of
-problems that satisfy the strict inclusion rule (14 of 150 attempted), so layer
-localisation should be read as a robust qualitative pattern (early-middle
-concentration) rather than a precise per-layer estimate. OlympiadBench results
-refer to the 43.3\% of problems with numerically gradable references and must not
-be compared numerically with SciBench. Finally, all models are evaluated
-zero-shot with a single fixed prompt per condition; prompt sensitivity is itself
-one of the phenomena we measure, so no attempt is made to tune prompts per model.
+All numbers come from a single GPU class (A800-80G) and a \texttt{transformers}
+backend without continuous batching, so wall-clock times are not comparable to a
+vLLM deployment, although greedy decoding makes accuracies backend-independent.
+Causal tracing covers one open-weight model and the strict-inclusion subset
+(\nbCausalValid{} of \nbCausalAttempts{} attempted), so the layer localisation is a
+qualitative early-middle pattern rather than a precise per-layer estimate; the
+layer-parse analysis rests on \nbCleanCorrect{} correct-baseline problems, which we
+accompany with Wilson intervals. OlympiadBench results refer to the
+\pctOlympiadScorable\% of problems with numerically gradable references and are used
+only for the direction of the scale trend. Error-type shares are annotator
+dependent ($\kappa=\kappaAnnotators$) and are reported coarsely. All models are
+evaluated zero-shot with a single fixed prompt per condition; prompt sensitivity is
+itself one of the phenomena measured, so no per-model prompt tuning is attempted.

@@ -25,7 +25,7 @@
 python scripts/make_paper_tables.py      # 7 张 tex 覆盖写
 ```
 
-## 七个表格对应关系
+## 八个表格对应关系
 
 | 表 | 文件 | 内容 | 数据来源 |
 |---|---|---|---|
@@ -36,6 +36,24 @@ python scripts/make_paper_tables.py      # 7 张 tex 覆盖写
 | 5 | `table5_cross_task.tex` | MMLU 选择题 / SciBench / OlympiadBench 形态对照 | `eval_mmlu*`、`eval_olympiad*` |
 | 6 | `table6_layer_parse_vs_acc.tex` | 逐层"可解析率 vs 正确率"，按 clean 对错分组 | `ct_all/*.json` |
 | 7 | `table7_prompt_scaffold.tex` | 同预算 cot vs structured 配对 + 格式遵循统计 | `eval_scibench_*_n150_t2048_*.json` |
+| 8 | `table8_wording_2x2.tex` | wording 变体的 2×2 配对计数（只有极少数跨过对错边界） | `paper_stats.json` |
+
+## 附录与补充统计（审稿意见落地）
+
+`python scripts/compute_paper_stats.py` → `results/paper_stats.json`，提供：
+
+| 项 | 内容 | 结论 |
+|---|---|---|
+| M1 | 逐层恢复率 bootstrap 95% CI + 峰值层与其它层的配对 bootstrap | 峰值层与 **6 个层不可区分** → 只声明 4-16 的 band，不声明单一峰值层 |
+| M3 | wording 变体 2×2 配对计数 + 精确 McNemar（4 个模型） | 240 题里只有 5 题跨过对错边界 → 改称"未检出系统性偏移" |
+| M4 | 7B/14B 错误分布卡方（同族/异族标签各一次） | 两次都不显著（p=0.208 / p=0.778） |
+| — | 加权 kappa + per-class 一致率 | κ_w=0.118；E2 上一致 88%，E1 上只有 16% |
+| — | Wilson 二项区间 | 小样本比例（如 10 题里 7 题）给区间而非点估计 |
+
+`python scripts/make_paper_appendix.py` → `paper/appendix.tex`：prompt 模板全文（从
+`src/prompts.py` 取，不会漂移）、结果 JSON 最小 schema（从真实结果文件取）、统计细节
+（bootstrap B 与 seed、McNemar 精确检验、kappa 变体、Wilson）。
+
 
 图：`results/sensitivity_comparison.png`（图 2）、`results/causal_tracing_Qwen2.5-7B.png`（图 3），
 均由 `scripts/make_figures.py` 生成。
