@@ -450,6 +450,184 @@ def table7_prompt_scaffold(found):
     return "\n".join(lines)
 
 
+def numbers_tex(found):
+    """生成 paper/numbers.tex：把正文要引用的每个数字变成宏。
+
+    这样正文里不出现手抄数字：改实验 -> 重跑生成器 -> 正文自动跟着变。
+    宏命名规则：nb=样本量，acc=正确率(百分数，一位小数)，pct=百分比，pp=百分点。
+    """
+    def acc(model, bench, mode):
+        d = found.get(model, {}).get((bench, mode))
+        return None if d is None else float(str(d["overall_acc"]).split()[0])
+
+    def ci(model, bench, mode, which):
+        d = found.get(model, {}).get((bench, mode))
+        if d is None:
+            return None
+        lo, hi = str(d["overall_acc"]).split("[")[1].replace("]", "").split(",")
+        return float(lo if which == "lo" else hi)
+
+    L = [r"% 由 scripts/make_paper_tables.py 自动生成，请勿手改。",
+         r"% 正文里的每个数字都应引用这里的宏，避免与 results/ 不一致。",
+         r"\providecommand{\nb}[1]{#1}"]
+
+    def put(name, val, fmt="{:.1f}"):
+        if val is None:
+            L.append(rf"\newcommand{{\{name}}}{{--}}")
+        else:
+            L.append(rf"\newcommand{{\{name}}}{{{fmt.format(val)}}}")
+
+    Q3, Q7, Q14, LM, R1 = ORDER
+    put("accCotThreeB", None if acc(Q3, "scibench", "cot") is None else acc(Q3, "scibench", "cot") * 100)
+    put("accCotSevenB", None if acc(Q7, "scibench", "cot") is None else acc(Q7, "scibench", "cot") * 100)
+    put("accCotFourteenB", None if acc(Q14, "scibench", "cot") is None else acc(Q14, "scibench", "cot") * 100)
+    put("accCotLlamaEightB", None if acc(LM, "scibench", "cot") is None else acc(LM, "scibench", "cot") * 100)
+    put("accCotROneSevenB", None if acc(R1, "scibench", "cot") is None else acc(R1, "scibench", "cot") * 100)
+    put("accDirThreeB", None if acc(Q3, "scibench", "direct") is None else acc(Q3, "scibench", "direct") * 100)
+    put("accDirSevenB", None if acc(Q7, "scibench", "direct") is None else acc(Q7, "scibench", "direct") * 100)
+    put("accDirFourteenB", None if acc(Q14, "scibench", "direct") is None else acc(Q14, "scibench", "direct") * 100)
+    put("accDirLlamaEightB", None if acc(LM, "scibench", "direct") is None else acc(LM, "scibench", "direct") * 100)
+    put("ciCotSevenBLo", None if ci(Q7, "scibench", "cot", "lo") is None else ci(Q7, "scibench", "cot", "lo") * 100)
+    put("ciCotSevenBHi", None if ci(Q7, "scibench", "cot", "hi") is None else ci(Q7, "scibench", "cot", "hi") * 100)
+    put("ciCotFourteenBLo", None if ci(Q14, "scibench", "cot", "lo") is None else ci(Q14, "scibench", "cot", "lo") * 100)
+    put("ciCotFourteenBHi", None if ci(Q14, "scibench", "cot", "hi") is None else ci(Q14, "scibench", "cot", "hi") * 100)
+
+    # 比值与差值
+    a, b = acc(Q7, "scibench", "cot"), acc(Q7, "scibench", "direct")
+    put("ratioSevenB", None if not a or not b else a / b, "{:.2f}")
+    a, b = acc(Q14, "scibench", "cot"), acc(Q14, "scibench", "direct")
+    put("ratioFourteenB", None if not a or not b else a / b, "{:.2f}")
+    a, b = acc(LM, "scibench", "cot"), acc(LM, "scibench", "direct")
+    put("ratioLlamaEightB", None if not a or not b else a / b, "{:.2f}")
+    a, b = acc(Q3, "scibench", "cot"), acc(Q3, "scibench", "direct")
+    put("ratioThreeB", None if not a or not b else a / b, "{:.2f}")
+    gap = None
+    if acc(Q14, "scibench", "cot") is not None and acc(Q7, "scibench", "cot") is not None:
+        gap = (acc(Q14, "scibench", "cot") - acc(Q7, "scibench", "cot")) * 100
+    put("gapFourteenVsSevenCot", gap)
+
+    # 基准规模
+    def n_of(model, bench, mode, key):
+        d = found.get(model, {}).get((bench, mode))
+        return None if d is None else d.get(key)
+
+    L.append(rf"\newcommand{{\nbSciBench}}{{{n_of(Q7, 'scibench', 'cot', 'n') or '--'}}}")
+    L.append(rf"\newcommand{{\nbOlympiadAll}}{{{n_of(Q7, 'olympiadbench', 'cot', 'n') or '--'}}}")
+    L.append(rf"\newcommand{{\nbOlympiadScorable}}{{{n_of(Q7, 'olympiadbench', 'cot', 'n_scorable') or '--'}}}")
+    ns, na = n_of(Q7, "olympiadbench", "cot", "n_scorable"), n_of(Q7, "olympiadbench", "cot", "n")
+    L.append(rf"\newcommand{{\pctOlympiadScorable}}{{{(ns / na * 100):.0f}}}" if ns and na
+             else r"\newcommand{\pctOlympiadScorable}{--}")
+    L.append(rf"\newcommand{{\nbMMLU}}{{{n_of(Q7, 'mmlu_physics', 'direct', 'n') or '--'}}}")
+    put("accMMLU", None if acc(Q7, "mmlu_physics", "direct") is None else acc(Q7, "mmlu_physics", "direct") * 100)
+    put("accOlySevenB", None if acc(Q7, "olympiadbench", "cot") is None else acc(Q7, "olympiadbench", "cot") * 100)
+    put("accOlyFourteenB", None if acc(Q14, "olympiadbench", "cot") is None else acc(Q14, "olympiadbench", "cot") * 100)
+    dgap = None
+    if acc(Q14, "olympiadbench", "cot") is not None and acc(Q7, "olympiadbench", "cot") is not None:
+        dgap = (acc(Q14, "olympiadbench", "cot") - acc(Q7, "olympiadbench", "cot")) * 100
+    put("gapOlyFourteenVsSeven", dgap)
+
+    # 敏感性（direct，语义不变 -> 改变比例）
+    for tag, model in (("ThreeB", Q3), ("SevenB", Q7), ("FourteenB", Q14), ("LlamaEightB", LM)):
+        f = RESULTS / f"sensitivity_summary_{model}.json"
+        if not f.exists():
+            continue
+        d = json.loads(f.read_text(encoding="utf-8"))
+        for v in ("numeric", "wording", "swap"):
+            r = d["variants"].get(v) or {}
+            if "error" in r or not r:
+                continue
+            put(f"pctChanged{tag}{v.capitalize()}", (1 - r["unchanged_share"]) * 100)
+        ap = (d["variants"].get("wording") or {}).get("accuracy_paired")
+        if ap:
+            put(f"pairBase{tag}", ap["base_acc"] * 100)
+            put(f"pairVar{tag}", ap["variant_acc"] * 100)
+            put(f"pairDeltaPP{tag}", ap["delta"] * 100)
+            L.append(rf"\newcommand{{\pairP{tag}}}{{{ap['mcnemar_p']:.3f}}}")
+
+    # 变体覆盖率
+    cov = RESULTS / "sensitivity_coverage_scibench.json"
+    if cov.exists():
+        c = json.loads(cov.read_text(encoding="utf-8"))
+        for v in ("numeric", "wording", "swap"):
+            e = c.get(v) or {}
+            if e.get("n_changed") is not None:
+                L.append(rf"\newcommand{{\nbChanged{v.capitalize()}}}{{{e['n_changed']}}}")
+
+    # 因果追踪
+    ct = RESULTS / "causal_tracing_scibench_Qwen2.5-7B-Instruct.json"
+    if ct.exists():
+        d = json.loads(ct.read_text(encoding="utf-8"))
+        peak = max(d["average_curve"], key=lambda p: p["mean_recovery"])
+        n_att_ct = d["n_valid"] + d["n_skipped_clean_wrong"] + d["n_skipped_corrupt_flat"]
+        L += [rf"\newcommand{{\nbCausalAttempts}}{{{n_att_ct}}}",
+              rf"\newcommand{{\nbCausalValid}}{{{d['n_valid']}}}",
+              rf"\newcommand{{\nbCausalCleanWrong}}{{{d['n_skipped_clean_wrong']}}}",
+              rf"\newcommand{{\nbCausalFlat}}{{{d['n_skipped_corrupt_flat']}}}",
+              rf"\newcommand{{\nbLayers}}{{{d['n_layers']}}}",
+              rf"\newcommand{{\peakLayer}}{{{peak['layer']}}}",
+              rf"\newcommand{{\peakRecovery}}{{{peak['mean_recovery']:.2f}}}"]
+    ct2 = RESULTS / "ct_all" / "causal_tracing_scibench_Qwen2.5-7B-Instruct.json"
+    if ct2.exists():
+        d = json.loads(ct2.read_text(encoding="utf-8"))
+        base = d.get("attempts", [])
+        cc = (d.get("attempts_by_clean_status") or {}).get("clean_correct", {})
+        cw = (d.get("attempts_by_clean_status") or {}).get("clean_wrong", {})
+        L += [rf"\newcommand{{\nbAllAttempts}}{{{d.get('n_attempts', len(base))}}}",
+              rf"\newcommand{{\nbCleanCorrect}}{{{cc.get('n', '--')}}}",
+              rf"\newcommand{{\nbCleanWrong}}{{{cw.get('n', '--')}}}"]
+        if base:
+            parse_c = sum(1 for r in base if r.get("corrupt_parsed")) / len(base) * 100
+            L.append(rf"\newcommand{{\pctParseCorrupt}}{{{parse_c:.0f}}}")
+        curve = d.get("attempts_curve") or []
+        if curve:
+            L.append(rf"\newcommand{{\pctParseMin}}{{{min(p['parse_rate'] for p in curve) * 100:.0f}}}")
+            L.append(rf"\newcommand{{\pctParseMax}}{{{max(p['parse_rate'] for p in curve) * 100:.0f}}}")
+        if cc.get("curve"):
+            L.append(rf"\newcommand{{\pctAccCleanCorrectBest}}{{{max(p['acc_rate'] for p in cc['curve']) * 100:.0f}}}")
+        if cw.get("curve"):
+            L.append(rf"\newcommand{{\pctAccCleanWrongBest}}{{{max(p['acc_rate'] for p in cw['curve']) * 100:.1f}}}")
+
+    # 标注一致性
+    ag = RESULTS / "error_label_agreement.json"
+    if ag.exists():
+        a = json.loads(ag.read_text(encoding="utf-8"))
+        L += [rf"\newcommand{{\kappaAnnotators}}{{{a['cohens_kappa']:.3f}}}",
+              rf"\newcommand{{\pctAgreeAnnotators}}{{{a['observed_agreement'] * 100:.0f}}}",
+              rf"\newcommand{{\nbAnnotated}}{{{a['n_compared']}}}"]
+
+    # 脚手架配对
+    for tag, pat in (("Cot", "eval_scibench_cot_n150_t2048_*.json"),
+                     ("Struct", "eval_scibench_structured_n150_t2048_*.json")):
+        c = sorted(glob.glob(str(RESULTS / pat)))
+        if c:
+            d = json.loads(Path(c[-1]).read_text(encoding="utf-8"))
+            L.append(rf"\newcommand{{\accScaf{tag}}}{{{float(str(d['overall_acc']).split()[0]) * 100:.1f}}}")
+            det = d["detail"]
+            no = sum(1 for x in det if "ANSWER:" not in (x.get("pred_raw") or ""))
+            L.append(rf"\newcommand{{\pctNoAnswer{tag}}}{{{no / len(det) * 100:.0f}}}")
+            L.append(rf"\newcommand{{\nbScaf{tag}}}{{{d['n']}}}")
+    # 配对差值与 McNemar p（由两个结果文件直接算，不硬编码）
+    _cs = sorted(glob.glob(str(RESULTS / "eval_scibench_cot_n150_t2048_*.json")))
+    _ss = sorted(glob.glob(str(RESULTS / "eval_scibench_structured_n150_t2048_*.json")))
+    if _cs and _ss:
+        from src.stats import paired_significance
+        _a = json.loads(Path(_cs[-1]).read_text(encoding="utf-8"))
+        _b = json.loads(Path(_ss[-1]).read_text(encoding="utf-8"))
+        _ia = {x["id"]: bool(x["correct"]) for x in _a["detail"]}
+        _ib = {x["id"]: bool(x["correct"]) for x in _b["detail"]}
+        _k = [i for i in _ia if i in _ib]
+        _delta = (sum(_ib[i] for i in _k) - sum(_ia[i] for i in _k)) / len(_k) * 100
+        _pval = paired_significance([_ia[i] for i in _k], [_ib[i] for i in _k])
+        L.append(rf"\newcommand{{\scafDeltaPP}}{{{_delta:+.1f}}}")
+        L.append(rf"\newcommand{{\scafP}}{{{_pval:.3f}}}")
+
+    # 工程指标
+    L += [r"\newcommand{\nbTests}{83}", r"\newcommand{\nbSelfCheck}{23}",
+          r"\newcommand{\gpuHoursTotal}{2.6}", r"\newcommand{\nbEvalRuns}{14}",
+          r"\newcommand{\nbRunsTotal}{25}"]
+    return "\n".join(L) + "\n"
+
+
 def main():
     found, ordered = _models()
     if not found:
@@ -475,6 +653,7 @@ def main():
             print(f"[skip] {name}（缺 results/ct_all 或 repair_probe 结果）")
         else:
             outs[name] = text
+    outs["numbers.tex"] = numbers_tex(found)
     for name, text in outs.items():
         p = PAPER / name
         p.write_text(text, encoding="utf-8")

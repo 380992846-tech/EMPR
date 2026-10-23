@@ -10,15 +10,17 @@ SciBench 物理全量（323 题）上给出实测结果：
 | Week 3 | 若在计算，**计算发生在哪些层**？ | 逐层恢复率（causal tracing），定位关键层区间 |
 | Week 4 | 错在哪一类环节？ | 错误类型标注 + 异族标注器复核（E1/E2/E3 + kappa） |
 
-**论文产物以什么为准**（本仓库没有完整论文草稿，只有表格与章节片段）：
+**论文产物以什么为准**：
 
 | 需要的东西 | 以哪个文件为准 |
 |---|---|
+| **论文本体** | `paper/main.tex`（12 页，全章节；正文**不含手抄数字**） |
 | 任何数字 | `results/*.json`（原始结果，带 `meta`） |
 | 论文表格 | `paper/table1..7_*.tex`，由 `scripts/make_paper_tables.py` 从 results 自动生成，**禁止手改** |
+| 行内数字 | `paper/numbers.tex`（同脚本生成，正文只引用宏名） |
 | 中文结论叙述 | 本 README 第 1-9 节 |
 | 英文叙述 | `paper/discussion.tex`、`paper/reproducibility_statement.tex` |
-| 填表口径与分母定义 | `paper/TABLES.md` |
+| 编译与自检 | `paper/BUILD.md`、`python scripts/check_paper.py` |
 
 ---
 

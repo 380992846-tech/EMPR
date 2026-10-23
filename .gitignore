@@ -27,3 +27,13 @@ models/
 # 系统
 .DS_Store
 Thumbs.db
+
+# LaTeX 中间产物（保留 main.pdf 作为交付物）
+paper/*.aux
+paper/*.log
+paper/*.blg
+paper/*.bbl
+paper/*.out
+paper/*.fls
+paper/*.fdb_latexmk
+paper/*.synctex.gz

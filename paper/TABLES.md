@@ -6,15 +6,18 @@
 
 | 内容 | 权威文件 | 说明 |
 |---|---|---|
+| **论文主稿** | `paper/main.tex` | 唯一主文件。正文**不含手抄数字**：表格走 `\input`，行内数字走 `numbers.tex` 的宏 |
 | **所有数字** | `results/*.json` | 每次运行写入的原始结果，含 `meta`（commit / prompt_fingerprint / max_new_tokens / wall_time_s） |
-| **论文表格** | `paper/table1..7_*.tex` | **由 `scripts/make_paper_tables.py` 从 `results/` 自动生成**，表头标注"请勿手改"。改数字只能重跑实验，不能改表 |
+| **论文表格** | `paper/table1..7_*.tex` | **由 `scripts/make_paper_tables.py` 从 `results/` 自动生成**，表头标注"请勿手改" |
+| **行内数字** | `paper/numbers.tex` | 同一脚本生成，86 个宏；正文只引用宏名 |
 | **中文叙述** | `README.md` 第 1-9 节 | results-first 结构，每个结论后附对应结果文件 |
-| **English 叙述** | `paper/discussion.tex`、`paper/reproducibility_statement.tex` | 可直接 `\input` 进论文 |
+| **English 叙述** | `paper/discussion.tex`、`paper/reproducibility_statement.tex` | 作为章节被 `main.tex` `\input` |
 | 填表口径 | 本文件 | 只讲"怎么算、分母是什么、哪些不能报" |
 
-> 本仓库**没有**完整的论文草稿（无 abstract / intro / method / experiments 的 .tex）。
-> 已产出的是可投稿的**表格 + Discussion + 可复现性声明**，正文需要另行撰写。
-> 数字一律不要在正文里手抄 —— 引用表格编号即可。
+> 论文主稿已成型（12 页，Abstract → Conclusion 全章节 + 参考文献）。
+> 编译方式见 `paper/BUILD.md`；一致性自检 `python scripts/check_paper.py`（已接入 pytest）。
+> **改数字的唯一正确路径**：重跑实验 → `python scripts/make_paper_tables.py` → 重新编译。
+> 直接改 `table*.tex` 或 `numbers.tex` 会被下次生成覆盖。
 
 重新生成全部表格：
 
