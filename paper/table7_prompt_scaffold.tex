@@ -1,0 +1,28 @@
+% 由 scripts/make_paper_tables.py 生成（同预算同题集配对比较），请勿手改
+\begin{table}[t]
+  \centering
+  \caption{Prompt scaffolding as a substitute for capability. The same
+           150 problems are evaluated with a matched budget (2048 new tokens) under
+           two prompts: standard chain-of-thought, and a structured prompt that additionally
+           asks the model to write down the knowns and unknowns explicitly. Accuracy does not
+           improve significantly, so the instability documented in
+           Table~\ref{tab:sensitivity} is not a missing-scaffold problem.}
+  \label{tab:scaffold}
+  \small
+  \begin{tabular}{@{}l c c c c@{}}
+    \toprule
+    \textbf{Prompt} & \textbf{Accuracy} & \textbf{95\% CI} & \textbf{No \texttt{ANSWER:}} &
+      \textbf{Output chars (mean / max)} \\
+    \midrule
+    standard cot & 24.0\% & [17.3, 31.3] & 71\% & 2377 / 4224 \\
+    structured (knowns/unknowns) & 26.0\% & [19.3, 33.3] & 90\% & 2373 / 4639 \\
+    \midrule
+    \multicolumn{4}{@{}l}{paired difference: +2.0\,pp, McNemar $p=0.700$} & \\
+    \bottomrule
+  \end{tabular}
+  \vspace{2pt}
+  \parbox{\linewidth}{\footnotesize The last column exposes a separate limitation: most
+  outputs ignore the requested \texttt{ANSWER:} format and are graded through the
+  fallback extractor. Output lengths are well below the token budget, so this is a
+  format-compliance failure rather than truncation.}
+\end{table}

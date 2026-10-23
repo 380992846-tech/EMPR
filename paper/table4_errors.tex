@@ -14,13 +14,13 @@
     \textbf{Model} & \textbf{Judge} & \textbf{Errors} & \textbf{E1} & \textbf{E2} &
       \textbf{E3} & \textbf{N} \\
     \midrule
-    Qwen2.5-7B & Qwen2.5-14B (same family) & 255 & 29.4\% & 57.6\% & 10.2\% & 2.7\% \\
+    Qwen2.5-7B & Qwen2.5-14B (same family) & 116 & 29.3\% & 58.6\% & 9.5\% & 2.6\% \\
     Qwen2.5-14B & Qwen2.5-14B (same family) & 240 & 22.5\% & 65.0\% & 8.3\% & 4.2\% \\
     \midrule
-    Qwen2.5-7B & Llama-3.1-8B (cross family) & 255 & 9.0\% & 82.0\% & 9.0\% & 0.0\% \\
+    Qwen2.5-7B & Llama-3.1-8B (cross family) & 116 & 11.2\% & 80.2\% & 8.6\% & 0.0\% \\
     Qwen2.5-14B & Llama-3.1-8B (cross family) & 240 & 7.5\% & 85.4\% & 7.1\% & 0.0\% \\
     \bottomrule
   \end{tabular}
   \vspace{2pt}
-  \parbox{\linewidth}{\footnotesize Under the same-family judge the distribution does not differ significantly between 7B and 14B ($\chi^2=4.55$, $df=3$, $p=0.208$). Cross-family agreement on the same 495 samples is only $\kappa=0.13$ (60\% raw agreement), so the \emph{precise} category shares are annotator-dependent; what is robust across both judges is that E2 dominates and E3 stays small (both judges' modal category: E2).}
+  \parbox{\linewidth}{\footnotesize Under the same-family judge the distribution does not differ significantly between 7B and 14B ($\chi^2=2.63$, $df=3$, $p=0.453$). Cross-family agreement on the same 495 samples is only $\kappa=0.13$ (60\% raw agreement), so the \emph{precise} category shares are annotator-dependent; what is robust across both judges is that E2 dominates and E3 stays small (both judges' modal category: E2).}
 \end{table}

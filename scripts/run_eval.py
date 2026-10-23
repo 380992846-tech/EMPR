@@ -87,16 +87,25 @@ def run_model(model_name, rows, cfg, backend, mode, max_new_tokens, batch_size,
 
 
 def summarize(detail, rows_unused=None):
-    """汇总正确率：分母只算 scorable 样本，参考答案解析不了的单独报 n_unscored。"""
+    """汇总正确率：分母只算 scorable 样本，参考答案解析不了的单独报 n_unscored。
+
+    额外报告 ``n_no_answer_line``：输出里没有 ``ANSWER:`` 行的条数。
+    这是**截断的代理指标**——长推导被 token 上限切断时，模型往往还没写到答案行，
+    此时数值是从推导中途回退抠出来的，正确率会被系统性低估。
+    """
     scorable = [d for d in detail if d["scorable"]]
     unscorable = [d for d in detail if not d["scorable"]]
     unparsed = [d for d in scorable if d["status"] == "unparsed_pred"]
+    no_ans = [d for d in scorable if "ANSWER:" not in (d.get("pred_raw") or "")]
+    lens = [d.get("n_pred_chars", 0) for d in scorable]
     return {
         "n": len(detail),
         "n_scorable": len(scorable),
         "n_unscored": len(unscorable),
         "n_unparsed_pred": len(unparsed),
+        "n_no_answer_line": len(no_ans),
         "n_correct": sum(1 for d in scorable if d["correct"]),
+        "mean_pred_chars": round(sum(lens) / len(lens), 1) if lens else 0.0,
         "flags": [d["correct"] for d in scorable],
     }
 
@@ -120,6 +129,10 @@ def report_table(detail, cfg, model_name, benchmark, mode):
         pct = agg["n_unparsed_pred"] / max(agg["n_scorable"], 1)
         print(f"  [warn] 模型输出抠不出数值 {agg['n_unparsed_pred']} 条 ({pct:.1%})，计为错——"
               f"若比例偏高，先查判分/提示词，别全量跑")
+    if agg["n_no_answer_line"]:
+        pct = agg["n_no_answer_line"] / max(agg["n_scorable"], 1)
+        print(f"  [warn] 输出中无 ANSWER: 行 {agg['n_no_answer_line']} 条 ({pct:.1%})，"
+              f"数值系回退抠取（格式遵循问题，非截断；平均输出 {agg['mean_pred_chars']:.0f} 字符）")
 
     domains = {}
     for d in detail:
@@ -135,6 +148,8 @@ def report_table(detail, cfg, model_name, benchmark, mode):
         "model": model_name, "benchmark": benchmark, "mode": mode,
         "n": agg["n"], "n_scorable": agg["n_scorable"], "n_unscored": agg["n_unscored"],
         "n_unparsed_pred": agg["n_unparsed_pred"],
+        "n_no_answer_line": agg["n_no_answer_line"],
+        "mean_pred_chars": agg["mean_pred_chars"],
         "overall_acc": overall_acc, "per_domain_acc": per_domain, "detail": detail,
     }
 
@@ -180,7 +195,8 @@ def main():
                    choices=["scibench", "olympiadbench", "mmlu_physics"])
     p.add_argument("--max-problems", type=int, default=None)
     p.add_argument("--cot", action="store_true", help="零样本 CoT（等价 --mode cot）")
-    p.add_argument("--mode", default=None, choices=["cot", "direct"], help="提示词模式")
+    p.add_argument("--mode", default=None, choices=["cot", "direct", "structured"],
+                   help="提示词模式；structured = 先列已知/未知再求解")
     p.add_argument("--backend", default="auto", choices=["auto", "vllm", "transformers"])
     p.add_argument("--device", default="auto", help="auto|cpu|cuda（transformers 后端）")
     p.add_argument("--no-chat", action="store_true",

@@ -176,7 +176,21 @@ E1/E2 boundary is intrinsically fuzzy (applying the wrong law usually also
 shows up as an arithmetic error).
 (iv) Unparsed model outputs are counted and reported
 (\texttt{n\_unparsed\_pred}), never imputed; on SciBench this count is zero for
-all reported runs.
+all reported runs. A related and more consequential limitation is \emph{format
+compliance}: between 71\% and 90\% of chain-of-thought outputs ignore the
+explicitly requested \texttt{ANSWER:} line and are graded through the fallback
+extractor (``last number on the last line''). Output lengths stay well below the
+token budget (mean $\approx$2{,}400 characters, max $\approx$4{,}600 against a
+2048-token cap), so this is not truncation, and accuracy does not differ
+systematically between compliant and non-compliant outputs (0.21 vs.\ 0.25 in the
+matched subset), i.e.\ the fallback does not obviously bias the headline numbers.
+It nevertheless means that any evaluation relying on strict output formatting
+would measure a lower ceiling than ours.
 (v) Throughput figures refer to the transformers backend; vLLM would be
 5--10$\times$ faster but is not used here, so wall-clock times are not
 comparable across backends.
+(vi) Prompt-level scaffolding does not substitute for capability: adding an
+explicit ``write down the knowns and unknowns'' instruction changes matched-budget
+accuracy by $+2.0$ percentage points (McNemar $p=0.70$, same 150 problems,
+2048-token budget), so we do not claim that prompt engineering repairs the
+instability documented by the paraphrase probes.

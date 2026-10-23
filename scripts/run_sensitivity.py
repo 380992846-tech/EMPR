@@ -599,7 +599,7 @@ def main():
     p.add_argument("--max-problems", type=int, default=40)
     p.add_argument("--backend", default="auto", choices=["auto", "vllm", "transformers"])
     p.add_argument("--device", default="auto")
-    p.add_argument("--mode", default=None, choices=["cot", "direct"])
+    p.add_argument("--mode", default=None, choices=["cot", "direct", "structured"])
     p.add_argument("--cot", action="store_true", help="等价 --mode cot")
     p.add_argument("--max-new-tokens", type=int, default=None)
     p.add_argument("--batch-size", type=int, default=8)

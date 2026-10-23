@@ -1,0 +1,76 @@
+% ==========================================================================
+% EMPR · Discussion（含"错误分类体系不确定性"这一评估局限洞见）
+% 英文，可直接粘进论文 Discussion 章节。
+% 数字对应仓库 commit 中的实跑结果：
+%   - 两位标注器（Qwen2.5-14B 同族 / Llama-3.1-8B 异族）在 495 条错误样本上
+%     观测一致率 60.2%，Cohen's kappa = 0.133
+%   - 两位标注器都认定 E2（代数/计算）为主类别，E3 稳定在 8-9%
+% ==========================================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{What the evidence jointly supports.}
+Four independent probes converge on the same reading of open-weight LLM physics
+performance. (i) Accuracy on SciBench physics tops out at 25.7\% for the largest
+model we ran and gains only $+4.6$ percentage points from a two-fold parameter
+increase, while chain-of-thought prompting roughly doubles accuracy
+(2.2--2.4$\times$ for the Qwen family) --- prompting matters more than scale.
+(ii) The same model reaches 66.6\% on multiple-choice MMLU physics but only
+21.1\% when it must produce the number itself, which rules out the "no physics
+knowledge" explanation: the knowledge is present and retrievable, the numerical
+execution is not. (iii) A perturbation that leaves physics and data bit-identical
+and only rewrites surface phrasing flips 24\%--34\% of final answers in every
+model we tested, without changing accuracy on average, i.e.\ the flips are
+symmetric error jitter rather than a difficulty effect. (iv) Restoring clean
+residual states recovers behaviour mainly from the early-middle layers
+(peak at layer 8 of 28, plateau over layers 4--16) and collapses after layer 18.
+Taken together: outputs are produced by computation, but the computation is not
+a stable physical solver --- it is surface-conditioned pattern matching with a
+fragile arithmetic tail.
+
+\paragraph{Why the error taxonomy is itself uncertain (and why that is a
+contribution).}
+Our cross-annotator agreement ($\kappa = 0.133$, 60.2\% raw agreement over 495
+samples) is low, and this is not merely a nuisance for our own error analysis ---
+it reveals a fundamental limitation of the error taxonomy itself: the boundary
+between ``misapplying a physical law'' (E1) and ``algebraic miscalculation''
+(E2) is inherently ambiguous, even for strong LLMs. When a model applies the
+wrong law, the resulting arithmetic is also wrong, so the observable output is
+consistent with either label; conversely, an arithmetic slip inside a correct
+derivation is textually indistinguishable from a mis-selected relation. We
+therefore report only the coarse, annotator-robust statement --- E2 dominates and
+E3 is rare under \emph{both} judges --- and deliberately do not quote precise
+category percentages. This suggests that evaluating AI reasoning purely through
+coarse-grained error categories is insufficient: taxonomy-based error analysis
+inherits an annotator-dependent ceiling that is invisible unless agreement is
+measured. We release our dual-annotated sample (495 wrong answers from two
+models, each labelled independently by a same-family judge and a cross-family
+judge) as a benchmark resource not only for physics reasoning, but for future
+work on the robustness of LLM-as-a-Judge error attribution, where the
+\emph{disagreement} between judges is the signal rather than noise.
+
+\paragraph{Implications for mitigation.}
+Two of our findings are directly actionable. First, since the dominant failure
+mode is arithmetic rather than physical (E2), the highest-leverage interventions
+are execution-side --- tool use / code interpreters, or explicit symbolic
+bookkeeping --- rather than more physical pre-training data. Second, since 24\%--
+34\% of answers move under a semantics-preserving paraphrase, single-prompt
+evaluation understates the variance of a model's competence; reporting
+paraphrase-consistency alongside accuracy is a cheap and informative robustness
+metric. Our counterfactual probe tests whether the instability is recoverable at
+inference time by adding structural scaffolding to the prompt (requiring the
+knowns and unknowns to be written down explicitly), i.e.\ whether the deficiency
+is a missing scaffold rather than a missing capability.
+
+\paragraph{Threats to validity.}
+All numbers come from a single GPU class (A800-80G) and a transformers backend
+without continuous batching, so wall-clock times are not comparable to vLLM
+setups, although the accuracy numbers are backend-independent given greedy
+decoding. Causal tracing is limited to one open-weight model and to the subset of
+problems that satisfy the strict inclusion rule (14 of 150 attempted), so layer
+localisation should be read as a robust qualitative pattern (early-middle
+concentration) rather than a precise per-layer estimate. OlympiadBench results
+refer to the 43.3\% of problems with numerically gradable references and must not
+be compared numerically with SciBench. Finally, all models are evaluated
+zero-shot with a single fixed prompt per condition; prompt sensitivity is itself
+one of the phenomena we measure, so no attempt is made to tune prompts per model.

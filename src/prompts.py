@@ -36,15 +36,32 @@ _MCQ_DIRECT = Template(
     "Give the chosen option letter on its own line, prefixed with \"ANSWER:\".\n"
     "Problem: $question"
 )
+# 结构化提示：要求先把已知量/未知量显式列出，再求解。
+# 用于反事实探针（counterfactual probe）：若表层改写导致的错误能被这句结构约束救回，
+# 说明缺陷是"缺少结构化解题脚手架"，可以用提示工程弥补，而不必依赖微调。
+_COT_STRUCTURED = Template(
+    "Solve the following physics problem step by step.\n"
+    "Before solving, first write down the knowns and unknowns explicitly, then derive the solution.\n"
+    "Show all work. At the end, give the final numeric answer on its own line, prefixed with \"ANSWER:\".\n"
+    "Problem: $question"
+)
+_MCQ_STRUCTURED = Template(
+    "Solve the following multiple-choice physics problem step by step.\n"
+    "Before solving, first write down the knowns and unknowns explicitly, then compare the options.\n"
+    "At the end, give the chosen option letter on its own line, prefixed with \"ANSWER:\".\n"
+    "Problem: $question"
+)
 
 TEMPLATES = {
     ("cot", False): _ZERO_COT,
     ("direct", False): _DIRECT,
     ("cot", True): _MCQ_COT,
     ("direct", True): _MCQ_DIRECT,
+    ("structured", False): _COT_STRUCTURED,
+    ("structured", True): _MCQ_STRUCTURED,
 }
 
-MODES = ("cot", "direct")
+MODES = ("cot", "direct", "structured")
 
 _OPTION_RE = re.compile(r"(?:^|\n)\s*[A-F][\.\)]\s+\S")
 
@@ -55,7 +72,7 @@ def is_mcq(question: str) -> bool:
 
 
 def build_prompt(question: str, mode: str = "cot", template=None) -> str:
-    """单条 prompt。mode ∈ {cot, direct}；选择题自动换模板。"""
+    """单条 prompt。mode ∈ {cot, direct, structured}；选择题自动换模板。"""
     if template is not None:
         return template.substitute(question=question)
     if mode not in MODES:

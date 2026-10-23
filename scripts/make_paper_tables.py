@@ -297,6 +297,159 @@ def table5_cross_task(found):
     return "\n".join(lines)
 
 
+def table6_layer_parse_vs_acc():
+    """逐层"输出执行(可解析率)"与"语义正确(正确率)"——检验二者是否解耦。
+
+    关键设计：按 clean 是否正确分组。混合平均会掩盖真正的结论
+    （parse 在每一层都是天花板，acc 只在"本来会做"的题上才随层变化）。
+    """
+    cands = sorted(glob.glob(str(RESULTS / "ct_all" / "*.json"))) or \
+        sorted(glob.glob(str(RESULTS / "causal_tracing_*.json")))
+    if not cands:
+        return None
+    src = cands[-1]
+    d = json.loads(Path(src).read_text(encoding="utf-8"))
+    curve = d.get("attempts_curve") or []
+    if not curve:
+        return None
+    base = d.get("attempts", [])
+    split = d.get("attempts_by_clean_status", {})
+    cc = split.get("clean_correct", {})
+    cw = split.get("clean_wrong", {})
+    n_att = d.get("n_attempts") or len(base)
+
+    def pct(x):
+        return "--" if x is None else f"{x * 100:.1f}"
+
+    parse_c = sum(1 for r in base if r.get("corrupt_parsed")) / len(base) if base else 0
+    acc_c = sum(1 for r in base if r.get("corrupt_ok")) / len(base) if base else 0
+    parse_cl = sum(1 for r in base if r.get("clean_parsed")) / len(base) if base else 0
+    acc_cl = sum(1 for r in base if r.get("clean_ok")) / len(base) if base else 0
+
+    cc_curve = {p["layer"]: p for p in cc.get("curve", [])}
+    cw_curve = {p["layer"]: p for p in cw.get("curve", [])}
+    layers = [p["layer"] for p in curve]
+    parse_min = min(p["parse_rate"] for p in curve)
+    parse_max = max(p["parse_rate"] for p in curve)
+
+    lines = [
+        r"% 由 scripts/make_paper_tables.py 从 results/ct_all/*.json 生成，请勿手改",
+        r"\begin{table}[t]",
+        r"  \centering",
+        r"  \caption{Output execution versus semantic correctness. The clean residual stream is",
+        r"           restored at one layer of the corrupted run; we record whether the model emits a",
+        r"           parseable number (\emph{parse}) and whether that number is correct (\emph{acc}).",
+        r"           Parseability is essentially layer-invariant, whereas correctness moves with the",
+        r"           restored depth --- and only for problems the model can solve without corruption.}",
+        r"  \label{tab:layer-parse-acc}",
+        r"  \small",
+        r"  \begin{tabular}{@{}l c c c@{}}",
+        r"    \toprule",
+        r"    \multirow{2}{*}{\textbf{Condition}} & \multirow{2}{*}{\textbf{Parse rate}} &",
+        r"      \multicolumn{2}{c}{\textbf{Accuracy}} \\",
+        r"    \cmidrule(lr){3-4}",
+        rf"    & & \textbf{{clean correct (n={cc.get('n', 0)})}} & \textbf{{clean wrong (n={cw.get('n', 0)})}} \\",
+        r"    \midrule",
+        rf"    corrupted (no restore) & {pct(parse_c)}\% & -- & {pct(acc_c)}\% \\",
+        rf"    clean (no corruption)  & {pct(parse_cl)}\% & -- & {pct(acc_cl)}\% \\",
+        r"    \midrule",
+    ]
+    for l in layers:
+        pc = cc_curve.get(l, {})
+        pw = cw_curve.get(l, {})
+        pt = next((p for p in curve if p["layer"] == l), {})
+        lines.append(
+            rf"    restore layer {l} & {pct(pt.get('parse_rate'))}\% & "
+            rf"{pct(pc.get('acc_rate'))}\% & {pct(pw.get('acc_rate'))}\% \\")
+    lines += [
+        r"    \bottomrule",
+        r"  \end{tabular}",
+        r"  \vspace{2pt}",
+        r"  \parbox{\linewidth}{\footnotesize",
+        rf"  Qwen2.5-7B-Instruct, {n_att} attempted problems, {len(curve)} restore points",
+        rf"  (every {d.get('layer_step')} layers of {d.get('n_layers')}). Parse rate stays within",
+        rf"  {pct(parse_min)}--{pct(parse_max)}\% at every layer, including the corrupted baseline:",
+        r"  the model always emits a number. Correctness, by contrast, is only recoverable for",
+        r"  problems the clean run solves, and never recovers for the rest at any single layer.}",
+        r"\end{table}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def table7_prompt_scaffold(found):
+    """结构化提示：同预算、同题集的配对比较 + 格式遵循统计。"""
+    import re as _re
+
+    def _load_any(pat):
+        c = sorted(glob.glob(str(RESULTS / pat)))
+        return json.loads(Path(c[-1]).read_text(encoding="utf-8")) if c else None
+
+    cot = _load_any("eval_scibench_cot_n150_t2048_*.json")
+    st = _load_any("eval_scibench_structured_n150_t2048_*.json")
+    if cot is None or st is None:
+        return None
+    ia = {d["id"]: d for d in cot["detail"]}
+    ib = {d["id"]: d for d in st["detail"]}
+    common = [i for i in ia if i in ib]
+    fa = [ia[i]["correct"] for i in common]
+    fb = [ib[i]["correct"] for i in common]
+    from src.stats import paired_significance
+    p_val = paired_significance(fa, fb)
+    acc_a, acc_b = sum(fa) / len(fa), sum(fb) / len(fb)
+
+    def fmt_stats(D):
+        det = D["detail"]
+        no = sum(1 for d in det if "ANSWER:" not in (d.get("pred_raw") or ""))
+        lens = [d.get("n_pred_chars", 0) for d in det]
+        return no / len(det), sum(lens) / len(lens), max(lens)
+
+    na, la, xa = fmt_stats(cot)
+    nb, lb, xb = fmt_stats(st)
+
+    def ci(s):
+        if "[" not in str(s):
+            return "--"
+        lo, hi = str(s).split("[")[1].replace("]", "").split(",")
+        return f"{float(lo) * 100:.1f}, {float(hi) * 100:.1f}"
+
+    lines = [
+        r"% 由 scripts/make_paper_tables.py 生成（同预算同题集配对比较），请勿手改",
+        r"\begin{table}[t]",
+        r"  \centering",
+        r"  \caption{Prompt scaffolding as a substitute for capability. The same",
+        rf"           {len(common)} problems are evaluated with a matched budget (2048 new tokens) under",
+        r"           two prompts: standard chain-of-thought, and a structured prompt that additionally",
+        r"           asks the model to write down the knowns and unknowns explicitly. Accuracy does not",
+        r"           improve significantly, so the instability documented in",
+        r"           Table~\ref{tab:sensitivity} is not a missing-scaffold problem.}",
+        r"  \label{tab:scaffold}",
+        r"  \small",
+        r"  \begin{tabular}{@{}l c c c c@{}}",
+        r"    \toprule",
+        r"    \textbf{Prompt} & \textbf{Accuracy} & \textbf{95\% CI} & \textbf{No \texttt{ANSWER:}} &",
+        r"      \textbf{Output chars (mean / max)} \\",
+        r"    \midrule",
+        rf"    standard cot & {acc_a * 100:.1f}\% & [{ci(cot['overall_acc'])}] & "
+        rf"{na * 100:.0f}\% & {la:.0f} / {xa} \\",
+        rf"    structured (knowns/unknowns) & {acc_b * 100:.1f}\% & [{ci(st['overall_acc'])}] & "
+        rf"{nb * 100:.0f}\% & {lb:.0f} / {xb} \\",
+        r"    \midrule",
+        rf"    \multicolumn{{4}}{{@{{}}l}}{{paired difference: {acc_b * 100 - acc_a * 100:+.1f}\,pp, "
+        rf"McNemar $p={p_val:.3f}$}} & \\",
+        r"    \bottomrule",
+        r"  \end{tabular}",
+        r"  \vspace{2pt}",
+        r"  \parbox{\linewidth}{\footnotesize The last column exposes a separate limitation: most",
+        r"  outputs ignore the requested \texttt{ANSWER:} format and are graded through the",
+        r"  fallback extractor. Output lengths are well below the token budget, so this is a",
+        r"  format-compliance failure rather than truncation.}",
+        r"\end{table}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def main():
     found, ordered = _models()
     if not found:
@@ -315,6 +468,13 @@ def main():
         "table4_errors.tex": table4_errors(kappa),
         "table5_cross_task.tex": table5_cross_task(found),
     }
+    extra = {"table6_layer_parse_vs_acc.tex": table6_layer_parse_vs_acc(),
+             "table7_prompt_scaffold.tex": table7_prompt_scaffold(found)}
+    for name, text in extra.items():
+        if text is None:
+            print(f"[skip] {name}（缺 results/ct_all 或 repair_probe 结果）")
+        else:
+            outs[name] = text
     for name, text in outs.items():
         p = PAPER / name
         p.write_text(text, encoding="utf-8")

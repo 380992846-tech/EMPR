@@ -61,22 +61,34 @@ def corrupt_quantities(question: str):
     return _QUANTITY_RE.sub(_PLACEHOLDER, question)
 
 
+def score_answer_full(text: str, ref: str, tol: float = 0.05, abs_tol: float = 0.01):
+    """返回 (correct, perf, parsed)。
+
+    多出来的 ``parsed`` 用于把**输出执行**与**语义正确**分开测：
+    前者 = 模型是否产出了可解析的数值答案（格式层），后者 = 该数值是否正确（语义层）。
+    两层曲线若在不同深度取到峰值，就说明"写成数字"和"算对这个数字"定位不同。
+    """
+    ref_v = parse_number(ref)
+    pred_v = extract_number(text)
+    if ref_v is None or pred_v is None:
+        return False, 0.0, False
+    if abs(ref_v) <= abs_tol:
+        ok = abs(pred_v - ref_v) <= abs_tol
+        return ok, 1.0 if ok else 0.0, True
+    rel = abs(pred_v - ref_v) / abs(ref_v)
+    return rel <= tol, max(0.0, 1.0 - rel), True
+
+
 def score_answer(text: str, ref: str, tol: float = 0.05, abs_tol: float = 0.01):
-    """返回 (correct: bool, perf: float in [0,1])。
+    """返回 (correct: bool, perf: float in [0,1])（向后兼容包装）。
 
     **必须用 extract_number**（抠出"最终答案"）而不是 parse_number(整段输出)：
     对 CoT 输出直接 parse_number 会取到推理过程里的第一个数字，把"答对"算成"答错"，
     进而让 clean/corrupt 的性能差变成噪声。
     perf 用连续分 1-相对误差，比 0/1 平滑，适合做逐层曲线；correct 用容差判定。
     """
-    ref_v = parse_number(ref)
-    pred_v = extract_number(text)
-    if ref_v is None or pred_v is None:
-        return False, 0.0
-    if abs(ref_v) <= abs_tol:
-        return abs(pred_v - ref_v) <= abs_tol, 1.0 if abs(pred_v - ref_v) <= abs_tol else 0.0
-    rel = abs(pred_v - ref_v) / abs(ref_v)
-    return rel <= tol, max(0.0, 1.0 - rel)
+    ok, perf, _ = score_answer_full(text, ref, tol=tol, abs_tol=abs_tol)
+    return ok, perf
 
 
 def load_model(model_name, dtype="auto", device="auto", verbose=True):
@@ -230,6 +242,9 @@ def main():
     p.add_argument("--max-new-tokens", type=int, default=128)
     p.add_argument("--device", default="auto")
     p.add_argument("--save", action="store_true")
+    p.add_argument("--all-attempts", action="store_true",
+                   help="对全部题目（含 clean 答错的）跑逐层循环，额外记录逐层"
+                        "可解析率与正确率，用于区分'输出执行'与'语义正确'")
     p.add_argument("--out-dir", default=str(RESULTS),
                    help="结果输出目录；管道验证建议用 results/smoke 以区别于正式实验")
     p.add_argument("--plot", action="store_true", help="画平均恢复率曲线（需 matplotlib）")
@@ -256,24 +271,34 @@ def main():
         return as_chat(tok, [p_])[0] if getattr(tok, "chat_template", None) else p_
 
     all_curves, n_skip_clean, n_skip_corrupt = {}, 0, 0
+    # 全部尝试的分层指标（含 clean 答错的题）：用于把"输出执行"与"语义正确"分开
+    all_attempts = []
     for r in rows:
         clean_prompt = prep(r["question"])
         corrupt_prompt = prep(corrupt_quantities(r["question"]))
         clean_text = run_once(model, tok, clean_prompt, device, args.max_new_tokens)
         corrupt_text = run_once(model, tok, corrupt_prompt, device, args.max_new_tokens)
-        clean_ok, perf_clean = score_answer(clean_text, r["answer"], tol, atol)
-        _, perf_corrupt = score_answer(corrupt_text, r["answer"], tol, atol)
+        clean_ok, perf_clean, clean_parsed = score_answer_full(
+            clean_text, r["answer"], tol, atol)
+        corrupt_ok, perf_corrupt, corrupt_parsed = score_answer_full(
+            corrupt_text, r["answer"], tol, atol)
 
-        if not clean_ok:
-            # clean 都没答对：恢复率没有意义（分子分母都是噪声）
-            n_skip_clean += 1
-            print(f"  [skip] {r['id']}: clean 未答对（perf={perf_clean:.2f}）")
-            continue
         denom = perf_clean - perf_corrupt
-        if denom <= 1e-9:
+        recoverable = bool(clean_ok) and denom > 1e-9
+        if not clean_ok:
+            n_skip_clean += 1
+            if not args.all_attempts:
+                print(f"  [skip] {r['id']}: clean 未答对（perf={perf_clean:.2f}）")
+        elif denom <= 1e-9:
             n_skip_corrupt += 1
-            print(f"  [skip] {r['id']}: corrupt 没掉分（clean={perf_clean:.2f}, "
-                  f"corrupt={perf_corrupt:.2f}）— 这道题模型本来就没在算")
+            if not args.all_attempts:
+                print(f"  [skip] {r['id']}: corrupt 没掉分（clean={perf_clean:.2f}, "
+                      f"corrupt={perf_corrupt:.2f}）")
+
+        # --all-attempts：即使是 clean 答错的题也跑逐层循环，
+        # 但只统计"是否产出可解析数值"与"是否正确"，不做 recovery 归一化
+        # （clean 本身就错时 recovery 无定义，只能看绝对的格式/正确率随层变化）。
+        if not recoverable and not args.all_attempts:
             continue
 
         clean_states = collect_clean_states(model, tok, clean_prompt, device)
@@ -281,11 +306,23 @@ def main():
         for k in range(0, n_layers, step):
             text_k = run_restore(model, tok, corrupt_prompt, k, clean_states, device,
                                  args.max_new_tokens)
-            ok_k, perf_k = score_answer(text_k, r["answer"], tol, atol)
-            curve.append({"layer": k, "perf": round(perf_k, 4),
-                          "recovery": round((perf_k - perf_corrupt) / denom, 4),
-                          "correct": bool(ok_k)})
-        peak = max(curve, key=lambda c: c["recovery"])
+            ok_k, perf_k, parsed_k = score_answer_full(text_k, r["answer"], tol, atol)
+            pt = {"layer": k, "perf": round(perf_k, 4), "parsed": bool(parsed_k),
+                  "correct": bool(ok_k)}
+            if recoverable:
+                pt["recovery"] = round((perf_k - perf_corrupt) / denom, 4)
+            curve.append(pt)
+        all_attempts.append({
+            "id": r["id"], "domain": r["domain"],
+            "clean_ok": bool(clean_ok), "clean_parsed": bool(clean_parsed),
+            "corrupt_ok": bool(corrupt_ok), "corrupt_parsed": bool(corrupt_parsed),
+            "perf_clean": round(perf_clean, 4), "perf_corrupt": round(perf_corrupt, 4),
+            "recoverable": recoverable, "curve": curve,
+        })
+
+        if not recoverable:
+            continue
+        peak = max(curve, key=lambda c: c.get("recovery", -9))
         all_curves[r["id"]] = {
             "ref": r["answer"], "domain": r["domain"],
             "perf_clean": round(perf_clean, 4), "perf_corrupt": round(perf_corrupt, 4),
@@ -319,6 +356,45 @@ def main():
     if not all_curves:
         print("[ct] 没有任何有效题目：换更大的模型/更多题数，或先看 clean 是否答得对。")
 
+    # ---------------- 全部尝试的分层指标：区分"输出执行"与"语义正确"
+    # parse_rate  = 是否产出可解析数值（格式/执行层）
+    # acc_rate    = 该数值是否正确（语义层）
+    # 两条曲线的峰值若不在同一深度，说明"把答案写成数字"和"算对这个数字"定位不同。
+    attempts_curve, attempts_split = [], {}
+    if all_attempts:
+        def _agg(records):
+            by = {}
+            for rec in records:
+                for pt in rec["curve"]:
+                    by.setdefault(pt["layer"], []).append(
+                        (1.0 if pt["parsed"] else 0.0, 1.0 if pt["correct"] else 0.0,
+                         pt["perf"]))
+            out = []
+            for l in sorted(by):
+                vals = by[l]
+                n = len(vals)
+                out.append({
+                    "layer": l, "n": n,
+                    "parse_rate": round(sum(v[0] for v in vals) / n, 4),
+                    "acc_rate": round(sum(v[1] for v in vals) / n, 4),
+                    "mean_perf": round(sum(v[2] for v in vals) / n, 4),
+                })
+            return out
+        attempts_curve = _agg(all_attempts)
+        for flag, sub in (("clean_correct", [r for r in all_attempts if r["clean_ok"]]),
+                          ("clean_wrong", [r for r in all_attempts if not r["clean_ok"]])):
+            if sub:
+                attempts_split[flag] = {"n": len(sub), "curve": _agg(sub)}
+        print(f"\n===== 全部尝试（{len(all_attempts)} 题）逐层 parse_rate / acc_rate =====")
+        print(f"  (corrupt 基线: parse={sum(r['corrupt_parsed'] for r in all_attempts)/len(all_attempts):.2f}, "
+              f"acc={sum(r['corrupt_ok'] for r in all_attempts)/len(all_attempts):.2f}；"
+              f"clean 基线: parse={sum(r['clean_parsed'] for r in all_attempts)/len(all_attempts):.2f}, "
+              f"acc={sum(r['clean_ok'] for r in all_attempts)/len(all_attempts):.2f})")
+        for pt in attempts_curve:
+            bar = "#" * int(pt["acc_rate"] * 40)
+            print(f"  layer {pt['layer']:>3}: parse={pt['parse_rate']:.2f} "
+                  f"acc={pt['acc_rate']:.2f} perf={pt['mean_perf']:.2f} {bar}")
+
     if args.save:
         f = Path(args.out_dir) / f"causal_tracing_{benchmark}_{meta_mod.model_slug(model_name)}.json"
         write_json(f, {
@@ -326,7 +402,7 @@ def main():
                 "run_causal_tracing.py", model=model_name, benchmark=benchmark,
                 mode=args.mode, n_layers=n_layers, layer_step=step,
                 max_new_tokens=args.max_new_tokens, device=device,
-                n_problems=len(rows),
+                n_problems=len(rows), all_attempts=args.all_attempts,
                 chat_template=bool(getattr(tok, "chat_template", None)),
                 prompt_fingerprint=meta_mod.fingerprint(
                     prompts_mod.build_prompt(rows[0]["question"], mode=args.mode))
@@ -336,6 +412,10 @@ def main():
             "n_valid": len(all_curves), "n_skipped_clean_wrong": n_skip_clean,
             "n_skipped_corrupt_flat": n_skip_corrupt,
             "average_curve": avg, "problems": all_curves,
+            "n_attempts": len(all_attempts),
+            "attempts_curve": attempts_curve,
+            "attempts_by_clean_status": attempts_split,
+            "attempts": all_attempts if args.all_attempts else [],
         })
         print(f"[save] {f}")
 
