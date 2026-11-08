@@ -55,24 +55,38 @@ def table1_main(found, ordered):
         r"% 由 scripts/make_paper_tables.py 从 results/eval_scibench_*.json 生成，请勿手改",
         r"\begin{table*}[t]",
         r"  \centering",
-        r"  \caption{Accuracy (\%) on SciBench physics (323 problems). All reference answers are",
-        r"           numerically gradable and all model outputs were parseable, so the denominator",
-        r"           is the full 323. Bracketed intervals are bootstrap 95\% CIs (10{,}000 resamples,",
-        r"           seed=42) on overall accuracy; sub-domain cells are point estimates.",
-        r"           ``cot'' = zero-shot chain-of-thought, ``direct'' = answer-only.}",
+        r"  \caption{Accuracy (\%) on SciBench physics (323 problems), and what the accuracy",
+        r"           matrix hides. All reference answers are numerically gradable and all model",
+        r"           outputs were parseable, so the denominator is the full 323. Bracketed intervals",
+        r"           are bootstrap 95\% CIs (10{,}000 resamples, seed=42) on overall accuracy;",
+        r"           sub-domain cells are point estimates. The last two columns expose the",
+        r"           prompt/scale interaction that the raw accuracies do not: $\Delta$ is the",
+        r"           cot$-$direct difference in points and the ratio is cot/direct. Note that the",
+        r"           smallest Qwen model still beats the larger Llama model, and that Llama gains",
+        r"           far less from chain-of-thought.}",
         r"  \label{tab:main}",
         r"  \footnotesize",
         r"  \setlength{\tabcolsep}{4pt}",
-        r"  \begin{tabular}{@{}l l r c c c c c c@{}}",
+        r"  \begin{tabular}{@{}l l r c c c c c c | r r@{}}",
         r"    \toprule",
         r"    \multirow{2}{*}{\textbf{Model}} & \multirow{2}{*}{\textbf{Mode}} &",
         r"      \multirow{2}{*}{\textbf{Overall (95\% CI)}} &",
-        r"      \multicolumn{6}{c}{\textbf{Sub-domain accuracy (\%)}} \\",
-        r"    \cmidrule(lr){4-9}",
-        r"    & & & " + " & ".join(rf"\textbf{{{DOM_LABEL[d]}}}" for d in DOMAINS) + r" \\",
+        r"      \multicolumn{6}{c|}{\textbf{Sub-domain accuracy (\%)}} &",
+        r"      \multicolumn{2}{c}{\textbf{cot vs direct}} \\",
+        r"    \cmidrule(lr){4-9}\cmidrule(lr){10-11}",
+        r"    & & & " + " & ".join(rf"\textbf{{{DOM_LABEL[d]}}}" for d in DOMAINS)
+        + r" & \textbf{$\Delta$ (pp)} & \textbf{ratio} \\",
         r"    \midrule",
     ]
+
+    def num(model, mode):
+        d = found.get(model, {}).get(("scibench", mode))
+        return None if d is None else float(str(d["overall_acc"]).split()[0])
+
     for i, model in enumerate(ordered):
+        c, dr = num(model, "cot"), num(model, "direct")
+        delta = f"{(c - dr) * 100:+.1f}" if c is not None and dr is not None else "--"
+        ratio = f"{c / dr:.2f}$\\times$" if c and dr else "--"
         for mode, label in (("cot", "cot"), ("direct", "direct")):
             d = found[model].get(("scibench", mode))
             if not d:
@@ -80,8 +94,9 @@ def table1_main(found, ordered):
             acc, ci = _acc(d["overall_acc"])
             cells = [f"{float(d['per_domain_acc'].get(dom, 'nan').split()[0]) * 100:.1f}"
                      for dom in DOMAINS]
+            tail = (rf" & {delta} & {ratio}" if label == "cot" else r" & & ")
             lines.append(f"    {_short(model)} & {label} & {acc} \\,{ci} & " +
-                         " & ".join(cells) + r" \\")
+                         " & ".join(cells) + tail + r" \\")
         if i < len(ordered) - 1:
             lines.append(r"    \addlinespace[2pt]")
     lines += [r"    \bottomrule", r"  \end{tabular}", r"\end{table*}", ""]
@@ -89,16 +104,22 @@ def table1_main(found, ordered):
 
 
 def table2_sensitivity():
+    """主表只保留有定量权重的两个变体（numeric / wording）。
+
+    swap 覆盖率仅 36/323，按审稿意见移到附录（table2b_swap.tex），
+    避免它与 numeric/wording 并列时获得不该有的视觉权重。
+    """
     lines = [
         r"% 由 scripts/make_paper_tables.py 从 results/sensitivity_summary_*.json 生成，请勿手改",
         r"\begin{table*}[t]",
         r"  \centering",
-        r"  \caption{Sensitivity of final answers to hard vs.\ surface perturbations",
+        r"  \caption{Sensitivity of final answers to the two perturbations that carry weight",
         r"           (SciBench physics, 323 base problems, answer-only prompt).",
-        r"           \emph{numeric} changes physical values with physics intact;",
-        r"           \emph{wording} only rewrites surface phrasing (physics and data identical);",
-        r"           \emph{swap} exchanges two distinct physical quantities.",
-        r"           ``Changed'' is the share of answers that differ from the base run.",
+        r"           \emph{numeric} rescales physical values with the physics intact;",
+        r"           \emph{wording} rewrites surface phrasing only, leaving physics and data",
+        r"           bit-identical. ``Changed'' is the share of answers that differ from the base",
+        r"           run --- a value-level statistic, which is why Table~\ref{tab:wording-2x2}",
+        r"           re-scores the same items against the reference.",
         r"           Median / p90 are reported instead of the mean: the sensitivity score is",
         r"           $|\Delta|/(|base|+\epsilon)$ and is dominated by outliers when $|base|\approx 0$.}",
         r"  \label{tab:sensitivity}",
@@ -110,7 +131,7 @@ def table2_sensitivity():
         r"      \textbf{Median sens.} & \textbf{p90 sens.} & \textbf{Changed} \\",
         r"    \midrule",
     ]
-    names = ["numeric", "wording", "swap"]
+    names = ["numeric", "wording"]
     rows = []
     for f in sorted(glob.glob(str(RESULTS / "sensitivity_summary_*.json"))):
         d = json.loads(Path(f).read_text(encoding="utf-8"))
@@ -124,13 +145,69 @@ def table2_sensitivity():
                 continue
             cov = r["n_changed"] / base if base else 0
             lines.append(
-                f"    {(r'\multirow{3}{*}{' + _short(model) + '}') if j == 0 else ''} & "
+                f"    {(r'\multirow{2}{*}{' + _short(model) + '}') if j == 0 else ''} & "
                 f"{v} & {r['n_changed']}/{base} ({cov * 100:.1f}\\%) & {r['n_parsed']} & "
                 f"{r['median_sensitivity']:.3f} & {r['p90_sensitivity']:.2f} & "
                 f"{(1 - r['unchanged_share']) * 100:.1f}\\% \\\\")
         if i < len(rows) - 1:
             lines.append(r"    \addlinespace[3pt]")
-    lines += [r"    \bottomrule", r"  \end{tabular}", r"\end{table*}", ""]
+    lines += [
+        r"    \bottomrule",
+        r"  \end{tabular}",
+        r"  \vspace{2pt}",
+        r"  \parbox{\linewidth}{\footnotesize A third probe (\emph{swap}, exchanging two",
+        r"  distinct physical quantities) covers only a small fraction of the benchmark and is",
+        r"  reported in Appendix~\ref{app:swap}; it is not used for any quantitative claim.}",
+        r"\end{table*}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def table2b_swap():
+    """附录里的 swap 变体表：覆盖率低，明示仅供参考。"""
+    rows = []
+    for f in sorted(glob.glob(str(RESULTS / "sensitivity_summary_*.json"))):
+        d = json.loads(Path(f).read_text(encoding="utf-8"))
+        rows.append((d["model"].rstrip("/").split("/")[-1], d))
+    rows.sort(key=lambda t: (ORDER.index(t[0]) if t[0] in ORDER else 99, t[0]))
+    if not rows:
+        return None
+    lines = [
+        r"% 由 scripts/make_paper_tables.py 生成，请勿手改",
+        r"\section{The \emph{swap} probe}",
+        r"\label{app:swap}",
+        r"The \emph{swap} perturbation exchanges two distinct physical quantities, producing a",
+        r"physically inconsistent problem. Most benchmark problems contain quantities of a",
+        r"single type or carry no units, so only a minority of items admit such a swap. Because",
+        r"the resulting sample is small and its percentages therefore unstable, we report the",
+        r"numbers for completeness and draw \emph{no} quantitative conclusion from them; they",
+        r"are excluded from Table~\ref{tab:sensitivity} precisely so that they are not read as",
+        r"comparable to the other two probes.",
+        r"",
+        r"\begin{table}[h]",
+        r"  \centering",
+        r"  \caption{The \emph{swap} probe, reported for completeness only. Coverage is a",
+        r"           property of the data (few items admit a two-quantity exchange), not of the",
+        r"           model, and is identical across models.}",
+        r"  \label{tab:swap}",
+        r"  \small",
+        r"  \begin{tabular}{@{}l r r r r@{}}",
+        r"    \toprule",
+        r"    \textbf{Model} & \textbf{Coverage} & \textbf{$n$ parsed} & \textbf{Median sens.} &",
+        r"      \textbf{Changed} \\",
+        r"    \midrule",
+    ]
+    for model, d in rows:
+        base = d.get("total_questions", 0)
+        r = d["variants"].get("swap") or {}
+        if "error" in r or not r:
+            continue
+        cov = r["n_changed"] / base if base else 0
+        lines.append(f"    {_short(model)} & {r['n_changed']}/{base} ({cov * 100:.1f}\\%) & "
+                     f"{r['n_parsed']} & {r['median_sensitivity']:.3f} & "
+                     f"{(1 - r['unchanged_share']) * 100:.1f}\\% \\\\")
+    lines += [r"    \bottomrule", r"  \end{tabular}", r"\end{table}", ""]
     return "\n".join(lines)
 
 
@@ -213,8 +290,9 @@ def table8_wording_2x2():
         r"  \caption{Paraphrase variants scored for \emph{correctness}: 2$\times$2 paired counts.",
         r"           The perturbation rewrites phrasing only, so the reference answer stays valid",
         r"           and a paired comparison is meaningful. Very few items cross the",
-        r"           correct/incorrect boundary, and the two directions are of similar size, i.e.\ we",
-        r"           do not detect a systematic shift (exact McNemar test on the discordant pairs).}",
+        r"           correct/incorrect boundary, in small numbers, and not consistently in one",
+        r"           direction (see the two middle columns), i.e.\ we do not detect a systematic",
+        r"           shift in either direction (exact McNemar test on the discordant pairs).}",
         r"  \label{tab:wording-2x2}",
         r"  \small",
         r"  \begin{tabular}{@{}l c c c c c@{}}",
@@ -347,7 +425,10 @@ def table5_cross_task(found):
         r"  \centering",
         r"  \caption{Same model, different answer formats. Multiple-choice recognition is easy;",
         r"           producing the final number is not. Task formats are not directly comparable",
-        r"           (selection vs.\ generation), so the contrast is interpreted qualitatively.}",
+        r"           (selection vs.\ generation), so the contrast is qualitative. \textbf{OlympiadBench",
+        r"           is used only for the \emph{direction} of the scale trend}: only a minority of its",
+        r"           items have numerically gradable references, that subset is biased towards simpler",
+        r"           items, and its values must not be compared numerically with SciBench.}",
         r"  \label{tab:cross-task}",
         r"  \small",
         r"  \begin{tabular}{@{}l l r c@{}}",
@@ -854,6 +935,7 @@ def main():
     }
     extra = {"table6_layer_parse_vs_acc.tex": table6_layer_parse_vs_acc(),
              "table8_wording_2x2.tex": table8_wording_2x2(),
+             "table2b_swap.tex": table2b_swap(),
              "table7_prompt_scaffold.tex": table7_prompt_scaffold(found)}
     for name, text in extra.items():
         if text is None:

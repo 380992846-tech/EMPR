@@ -29,8 +29,9 @@ python scripts/make_paper_tables.py      # 7 张 tex 覆盖写
 
 | 表 | 文件 | 内容 | 数据来源 |
 |---|---|---|---|
-| 1 | `table1_main.tex` | 5 模型 × cot/direct，overall CI + 6 子域 | `eval_scibench_*.json` |
-| 2 | `table2_sensitivity.tex` | 4 模型 × 3 变体（覆盖/median/p90/改变比例） | `sensitivity_summary_*.json` |
+| 1 | `table1_main.tex` | 5 模型 × cot/direct，overall CI + 6 子域 + **Δ 与 ratio 列**（让 prompting×scale 交互一眼可见） | `eval_scibench_*.json` |
+| 2 | `table2_sensitivity.tex` | 4 模型 × 2 个**有定量权重**的变体（numeric / wording） | `sensitivity_summary_*.json` |
+| 2b | `table2b_swap.tex` | swap 变体，**附录专用**：覆盖率过低，正文不作任何定量结论 | `sensitivity_summary_*.json` |
 | 3 | `table3_causal.tex` | 逐层恢复率按层区间聚合（n=14） | `causal_tracing_*.json` |
 | 4 | `table4_errors.tex` | 错误类型，**两位标注器并排** + 卡方 + kappa | `error_labels.json`、`error_labels_llama.json` |
 | 5 | `table5_cross_task.tex` | MMLU 选择题 / SciBench / OlympiadBench 形态对照 | `eval_mmlu*`、`eval_olympiad*` |

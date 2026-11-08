@@ -5,38 +5,43 @@
 \section{Discussion}
 \label{sec:discussion}
 
-\paragraph{From a binary question to a third regime.}
-We opened with ``compute or retrieve?'' because it makes falsifiable predictions.
-The data reject both endpoints and support a third regime. A pure retrieval story
-predicts insensitivity to numerical values and high sensitivity to surface form; a
-pure computation story predicts the opposite. We observe \emph{both} sensitivities
-at once: rescaled values move \pctChangedSevenBNumeric\% of answers (so the values
-are used), and a semantics-preserving paraphrase moves
-\pctChangedSevenBWording\% (so surface form is also used). The additional
-separation we introduce --- counting only changes that cross the
-correct/incorrect boundary --- shows that the paraphrase effect is
-\emph{value-level}: just \nbWordingFlips{} of 240 items change correctness, with
-discordant pairs roughly balanced. We therefore name the regime
-\emph{surface-conditioned computation}: the model computes, its computation depends
-on irrelevant phrasing, and its outputs wander within a band that mostly keeps
-correctness fixed. Calling this ``reasoning failure'' or ``retrieval'' would both
-misdescribe it.
+\paragraph{The metric is the finding.}
+We set out to audit what a headline accuracy number can support, and in each of the
+three places we probed it, the number concealed a distinction that changes the
+reading. \emph{Value vs.\ correctness:} the paraphrase effect is
+\pctChangedSevenBWording\% in value-agreement terms and \nbWordingFlips{} of
+\nbWordingCovered{} items in correctness terms --- an order of magnitude apart, and
+the larger of the two is the misleading one. \emph{Execution vs.\ semantics:}
+parseability sits at \pctParseCorrupt\%--\pctParseMax\% regardless of intervention
+while correctness tracks the restored depth, so a metric that folds the two together
+cannot say which channel failed. \emph{Localisation:} the data licence a band
+(layers \plateauLo--\plateauHi) but not a layer, and the difference between those two
+claims is invisible in any point estimate.
 
-\paragraph{What the evidence jointly supports.}
-Five probes converge on one reading. (i) Accuracy on SciBench physics tops out at
-\accCotFourteenB\% for the largest model we ran and gains only
-\gapFourteenVsSevenCot{} points from a two-fold parameter increase, while
-chain-of-thought multiplies accuracy by \ratioThreeB--\ratioFourteenB$\times$ for
-the Qwen family --- prompting outweighs scale in this setting. (ii) The same model
-reaches \accMMLU\% on multiple-choice MMLU physics but only \accCotSevenB\% when it
-must produce the number itself, which rules out missing knowledge: it is present
-and retrievable, while numerical execution is not. (iii) The paraphrase
-instability described above is model-generic
-(\pctChangedThreeBWording\%, \pctChangedFourteenBWording\%,
-\pctChangedLlamaEightBWording\% in the other three models) and is value-level
-rather than correctness-level. (iv) Restoring clean residual states recovers
-behaviour over an early-middle band (layers 4--16 of \nbLayers) that we can
-localise as a range but not as a single peak, and the recovery collapses after
+Two further bounds are properties of the apparatus rather than of the models: two
+LLM judges agree at only $\kappa=\kappaAnnotators$ on an error taxonomy whose
+most-talked-about category boundary is not textually observable, and
+\pctNoAnswerCot\%--\pctNoAnswerStruct\% of outputs violate the requested answer
+format, so strict and fallback grading report different ceilings on the same
+generations. Taken together, the honest summary of this literature's standard
+evidence --- one accuracy number per model-prompt pair --- is that it is
+\emph{under-specified}: several of the distinctions we care about are recoverable,
+but only if the evaluation is designed to expose them.
+
+\paragraph{What the model evidence supports.}
+Within those bounds, the measurements are consistent: (i) accuracy on SciBench
+physics tops out at \accCotFourteenB\% and gains only \gapFourteenVsSevenCot{}
+points from a two-fold parameter increase, while chain-of-thought multiplies accuracy
+by \ratioThreeB--\ratioFourteenB$\times$ for the Qwen family, so the prompt
+interaction dominates the scale effect in this setting; (ii) the same model reaches
+\accMMLU\% on multiple-choice MMLU physics but only \accCotSevenB\% when it must
+produce the number itself, which rules out missing knowledge: it is present and
+retrievable while numerical execution is not; (iii) the paraphrase instability is
+model-generic (\pctChangedThreeBWording\%, \pctChangedFourteenBWording\%,
+\pctChangedLlamaEightBWording\% in the other three models) and is value-level rather
+than correctness-level; (iv) restoring clean residual states recovers behaviour over
+an early-middle band (\plateauLo--\plateauHi{} of \nbLayers) that we can localise as
+a range but not as a single peak, and the recovery collapses after
 layer 18. (v) Separating output execution from correctness shows parseability is
 layer-invariant (\pctParseCorrupt\% even under corruption) while correctness is
 depth-dependent, and on problems the model cannot solve restoration never exceeds

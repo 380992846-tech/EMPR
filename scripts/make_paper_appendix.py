@@ -194,6 +194,7 @@ def stats_appendix() -> str:
 
 def main():
     parts = [r"% 由 scripts/make_paper_appendix.py 自动生成，请勿手改。", ""]
+    parts.append(r'\input{table2b_swap.tex}')
     for fn in (prompts_appendix, schema_appendix, stats_appendix):
         t = fn()
         if t:

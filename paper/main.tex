@@ -35,8 +35,9 @@
 
 \newcommand{\TODO}[1]{\textcolor{red}{[TODO: #1]}}
 
-\title{\textbf{Surface-Conditioned Computation:\\
-Probing Whether Open LLMs Compute or Retrieve on Physics Problems}}
+\title{\textbf{What a Single Accuracy Number Hides:\\
+Separating Value-Level Wandering from Execution-Level Failure\\
+in Physics Reasoning}}
 \author{Anonymous Authors}
 \date{}
 
@@ -45,35 +46,37 @@ Probing Whether Open LLMs Compute or Retrieve on Physics Problems}}
 
 % ---------------------------------------------------------------- Abstract
 \begin{abstract}
-We ask whether open-weight language models actually \emph{compute} when they
-answer multi-step physics problems, or whether they pattern-match against
-memorised solutions. Rather than reporting a single accuracy number, we combine
-five probes on SciBench physics (\nbSciBench{} problems), a multiple-choice
-control (MMLU physics, \nbMMLU{} problems) and a second free-response benchmark
-(OlympiadBench physics, \nbOlympiadAll{} problems).
-Three findings carry the paper. First, \emph{prompting outweighs scale}:
-chain-of-thought multiplies accuracy by \ratioThreeB--\ratioFourteenB$\times$
-across the Qwen2.5 family, whereas doubling parameters from 7B to 14B adds only
-\gapFourteenVsSevenCot{} points, and the benefit is family-dependent rather than
-universal (\ratioLlamaEightB$\times$ for Llama-3.1-8B). Second, \emph{knowledge
-is present but execution is not}: the same 7B model answers \accMMLU\% of
-multiple-choice physics items but only \accCotSevenB\% when it must produce the
-number itself. Third, \emph{answers are surface-conditioned}: a paraphrase that
-leaves physics and data bit-identical changes \pctChangedSevenBWording\% of final
-answers in every model we test, yet moves only \nbWordingFlips{} of \nbWordingCovered{}
-items across the correct/incorrect boundary, so the instability is value-level wandering
-rather than a systematic difficulty change.
-Two further probes constrain the mechanism. Corrupt-and-restore causal tracing
-localises recoverable behaviour to an early-middle band (roughly layers 4--16 of
-\nbLayers) that we can identify as a range but \emph{not} as a single peak layer,
-and separating output execution from correctness shows that parseability is
-layer-invariant while correctness is not; on problems the model cannot solve,
-restoration never rescues them at any single layer. Error annotation
-cross-checked by a second, cross-family judge indicates that arithmetic rather
-than physical knowledge dominates the failures, but agreement between the judges
-is only $\kappa=\kappaAnnotators$, so we claim only annotator-robust statements
-and release the dual-annotated sample as a resource for LLM-as-a-judge research.
-All experiments ran on a single 80\,GB GPU in about \gpuHoursTotal{} GPU-hours.
+\emph{A single accuracy number cannot tell a model that computes from a model that
+recognises the problem family} --- and, we show, it also cannot tell a stable model
+from one whose answers wander. We audit what the headline metric misses with five
+probes plus two controls on physics reasoning: a value-level perturbation
+(rescale the numbers), a correctness-level perturbation (rephrase the question
+while leaving physics and data bit-identical), a multiple-choice format control,
+corrupt-and-restore causal tracing, and an error-type annotation checked by a
+second, cross-family judge. Across \nbSciBench{} SciBench physics problems and five
+open-weight models, three results do the work. First, on the measurement side,
+paraphrase changes \pctChangedSevenBWording\% of final \emph{values} yet moves only
+\nbWordingFlips{} of \nbWordingCovered{} items across the correct/incorrect
+boundary, mostly in the \emph{favourable} direction (\nbWrongToRight{} items are
+rescued by the paraphrase versus \nbRightToWrong{} broken; exact McNemar
+$p=\pWordingExact$): retrospective re-scoring of the same
+generations converts what a value-level comparison reports as a large difficulty
+effect into a non-significant one with no systematic penalty. Second, on the
+mechanism side, output execution and semantic correctness run on different
+pathways: parseability is essentially layer-invariant while correctness is
+depth-dependent, and on problems the model cannot solve, restoring any single
+layer never exceeds \pctAccCleanWrongBest\% (Wilson 95\% CI
+$[\wilsonCwLo,\wilsonCwHi]$). Third, recoverable behaviour occupies a
+\emph{contiguous early-middle band} (layers \plateauLo--\plateauHi{} of
+\nbLayers), and we show that single-layer claims are \emph{not identifiable} at
+our sample size --- a negative identifiability result we treat as a finding, not
+an apology. Two validity bounds accompany these: strict-format evaluation and
+fallback evaluation give different ceilings on the same generations
+(\pctNoAnswerCot\%--\pctNoAnswerStruct\% of outputs never emit the requested answer
+marker), and two LLM judges agree at only $\kappa=\kappaAnnotators$ on an
+error taxonomy whose E1/E2 boundary is not textually observable. Everything runs
+on one 80\,GB GPU in about \gpuHoursTotal{} GPU-hours, and the dual-annotated
+sample is released.
 \end{abstract}
 
 % ---------------------------------------------------------------- 1 Intro
@@ -83,62 +86,84 @@ All experiments ran on a single 80\,GB GPU in about \gpuHoursTotal{} GPU-hours.
 Chain-of-thought prompting \citep{wei2022cot} is routinely credited with giving
 language models ``reasoning'' ability, and physics benchmarks such as SciBench
 \citep{wang2023scibench} and OlympiadBench \citep{he2024olympiadbench} are used to
-demonstrate progress. A single accuracy number, however, cannot distinguish two
-very different internal situations: a model that derives the answer from the
-stated quantities, and a model that recognises the problem family and emits a
-plausible-looking number.
+demonstrate progress. The evidence offered is almost always the same shape: a
+single accuracy number, compared across models or prompts. That number silently
+aggregates decisions about what counts as the answer, which generations count as
+valid, and which differences are real. This paper takes those decisions apart.
 
-\paragraph{A binary framing, deliberately, and how the data refine it.}
-We organise the study around the question ``compute or retrieve?'' because it
-generates falsifiable predictions: a retrieving model should be insensitive to
-the numerical values and highly sensitive to surface form, whereas a computing
-model should show the opposite pattern. We stress in advance that our results do
-\emph{not} support either pure endpoint. What the probes jointly indicate is a
-third regime, which we call \emph{surface-conditioned computation}: the stated
-values do enter the computation (so it is not lookup), the computation is
-nevertheless highly sensitive to semantically irrelevant phrasing, and it fails
-systematically at the numerical-execution stage. The title's question is the
-entry point of the investigation, not its conclusion; \S\ref{sec:discussion}
-returns to this framing explicitly.
+\paragraph{Thesis: the metric is the object of study.}
+This is not a ``which model is better at physics'' paper. It is an audit of what
+the headline metric --- accuracy on a benchmark, compared across prompts, formats
+and models --- can and cannot support. Three things a single accuracy number
+cannot distinguish, and that we measure separately:
+(i) an answer \emph{value} that drifts under a semantics-preserving paraphrase from
+an answer whose \emph{correctness} changes; (ii) producing \emph{a} number from
+producing \emph{the right} number; and (iii) a behaviour that is
+\emph{localisable} to a layer range from one that would licence a claim about a
+specific layer. In each case we find that the metric as usually reported hides a
+distinction that changes the interpretation, and in two of the three the honest
+conclusion is a \emph{validity bound} on the evaluation rather than a statement
+about the model.
 
-We ask three questions and answer them with measurements that are cheap,
-deterministic and reproducible on a single GPU:
+Our probes are deliberately cheap and falsifiable. A perturbation that changes the
+physics (rescale the numbers) should move a computing model; a perturbation that
+changes only the phrasing should not. Causal tracing should localise whatever
+computation exists. An error taxonomy should agree with itself across annotators.
+Where a probe returns a negative or uninformative answer, we report the bound it
+imposes rather than the conclusion we would have liked.
 
 \begin{itemize}
-  \item \textbf{What does performance look like?} (\S\ref{sec:main}) Five
-        open-weight models on \nbSciBench{} SciBench physics problems, with
-        bootstrap confidence intervals and per-sub-domain breakdowns.
-  \item \textbf{Is the model computing or retrieving?} (\S\ref{sec:sensitivity})
-        Three perturbations that are semantically different but superficially
-        similar: change the numbers, rewrite the wording, exchange two physical
-        quantities.
-  \item \textbf{If it computes, where?} (\S\ref{sec:causal}) Corrupt-and-restore
-        causal tracing, followed by a separation of ``producing a number'' from
-        ``producing the right number''.
+  \item \textbf{Baseline behaviour.} (\S\ref{sec:main}) Five open-weight models on
+        \nbSciBench{} SciBench physics problems, with bootstrap intervals and the
+        prompt/scale interaction made explicit.
+  \item \textbf{Value vs.\ correctness.} (\S\ref{sec:sensitivity}) A paraphrase
+        that leaves physics and data bit-identical, re-scored against the
+        reference rather than compared answer-to-answer.
+  \item \textbf{Execution vs.\ semantics.} (\S\ref{sec:causal}) Corrupt-and-restore
+        tracing, with two metrics recorded per layer: is the emitted answer
+        parseable, and is it correct?
+  \item \textbf{Knowledge vs.\ format.} (\S\ref{sec:cross}) A multiple-choice
+        control that holds the physics fixed and changes only the output format.
+  \item \textbf{Validity bounds.} Error attribution across two judges
+        (\S\ref{sec:errors}), prompt scaffolding (\S\ref{sec:scaffold}), and an
+        output-format ceiling that caps what strict grading can see
+        (\S\ref{sec:format}).
 \end{itemize}
-
-A multiple-choice control (\S\ref{sec:cross}) holds knowledge fixed and varies
-only the answer format; an error-type analysis with a cross-family annotator
-check (\S\ref{sec:errors}) asks \emph{which} stage fails and how reliable such
-attributions are; and \S\ref{sec:scaffold} tests whether prompt-level scaffolding
-can repair the instability.
 
 \paragraph{Contributions.}
 \begin{enumerate}
-  \item A multi-probe protocol that separates computation from retrieval using
-        only black-box generation plus, for one open-weight model, residual-stream
-        interventions --- together with the finding that \emph{paraphrase
-        instability} is a reproducible, model-generic signature of
-        surface-conditioned answering, and that it is value-level rather than
-        correctness-level.
-  \item A representation-vs-output decomposition: output execution is
-        layer-invariant while correctness is layer-localised, and failures on
-        problems the model cannot solve are \emph{not} recoverable by restoring
-        any single layer.
-  \item An honest measurement result: with a same-family and a cross-family judge
-        annotating the same \nbAnnotated{} errors, agreement is only
-        $\kappa=\kappaAnnotators$. We claim only annotator-robust statements and
-        release the dual-annotated sample as a resource.
+  \item \textbf{A measurement claim, not a model claim} (strongest result): on the
+        same generations, a semantics-preserving paraphrase changes
+        \pctChangedSevenBWording\% of answer \emph{values} but moves only
+        \nbWordingFlips{} of \nbWordingCovered{} items across the
+        correct/incorrect boundary, mostly in the favourable direction and not
+        significant under an exact McNemar test. Any evaluation that compares
+        prompt variants by a single accuracy pass --- or by answer agreement ---
+        can therefore read value-level wandering as a difficulty change. We show
+        the two readings diverge, and that the direction of the error is
+        predictable: agreement-based comparisons overstate the effect.
+  \item \textbf{An identifiability result about layer localisation}: recoverable
+        behaviour forms a contiguous early-middle band (layers
+        \plateauLo--\plateauHi{} of \nbLayers), and single-layer claims are
+        \emph{not identifiable} at our sample size --- the point-estimate maximum
+        is statistically indistinguishable from several other layers inside the
+        band. We report the band, the formal definition that produces it, and the
+        identifiability limit as a result rather than as a caveat.
+  \item \textbf{A representation-vs-output decomposition}: parseability is
+        essentially layer-invariant (\pctParseCorrupt\% even under corruption),
+        while correctness is depth-dependent; and on problems the model cannot
+        solve, restoration never rescues them at any single layer
+        ($\leq$\pctAccCleanWrongBest\%). Execution and semantics are separable,
+        and the failures are capability limits rather than misplaced
+        representations.
+  \item \textbf{Two validity bounds on the measurement apparatus}, reported
+        alongside (not instead of) the findings: between \pctNoAnswerCot\% and
+        \pctNoAnswerStruct\% of outputs never emit the requested answer marker, so
+        strict-format and fallback grading give different ceilings on identical
+        generations; and two LLM judges agree at only
+        $\kappa=\kappaAnnotators$ on an error taxonomy whose E1/E2 boundary is not
+        textually observable. We release the dual-annotated sample as a resource
+        for LLM-as-a-judge reliability research.
 \end{enumerate}
 
 % ---------------------------------------------------------------- 2 Related
@@ -245,13 +270,16 @@ together with the skip counts.
 \section{Results}
 \label{sec:results}
 
-The stages below correspond to the project's Week~1--4 work plan (main table,
-perturbation probes, causal tracing, error attribution), plus two controls added
-during revision. Three of them carry the argument --- \S\ref{sec:main} (prompting vs
-scale), \S\ref{sec:sensitivity} (compute vs retrieve) and \S\ref{sec:cross}
-(knowledge vs execution) --- while \S\ref{sec:causal}, \S\ref{sec:errors},
-\S\ref{sec:scaffold} and \S\ref{sec:format} constrain the mechanism or bound the
-measurement.
+The order of the subsections follows the audit: each starts from a number that is
+normally reported and then reports what that number conceals.
+\S\ref{sec:main} establishes the baseline and shows the prompt$\times$scale
+interaction the accuracy matrix hides; \S\ref{sec:sensitivity} separates value drift
+from correctness change; \S\ref{sec:causal} separates output execution from semantic
+correctness and states an identifiability limit; \S\ref{sec:cross} holds knowledge
+fixed while varying format; \S\ref{sec:errors} and \S\ref{sec:format} are the two
+validity bounds; \S\ref{sec:scaffold} closes the loop by testing a mitigation. Read
+in order, the sections support one claim: the standard single-number summary is
+under-specified for the distinctions this benchmark is used to draw.
 
 \subsection{How large is the prompting effect relative to scale?}
 \label{sec:main}
@@ -278,9 +306,22 @@ run it answer-only, because its instruction-tuned behaviour emits reasoning trac
 regardless of the prompt and a \emph{direct} comparison would not be
 like-for-like.
 
-\subsection{Is the model computing or retrieving?}
+\paragraph{What the accuracy number hides here.}
+The matrix in Table~\ref{tab:main} reports accuracies; the interaction that matters
+is in its last two columns, which no single cell expresses. Chain-of-thought helps
+the Qwen family by \ratioThreeB--\ratioFourteenB$\times$ but Llama-3.1-8B by only
+\ratioLlamaEightB$\times$, so ``prompting helps'' is family-conditional, and a
+paragraph comparing two models at one prompt condition can reach the opposite
+conclusion depending on which condition is chosen. Likewise the family-over-scale
+inversion (Qwen 3B at \accCotThreeB\% versus Llama 8B at \accCotLlamaEightB\%) is
+invisible if a study samples one model per family and reports a single score.
+Neither point is new in kind, but both are exactly what a headline number discards.
+
+\subsection{What the accuracy number hides, I: value drift vs.\ correctness change}
 \label{sec:sensitivity}
-Table~\ref{tab:sensitivity} reports the three perturbation probes for four models.
+Table~\ref{tab:sensitivity} reports the two perturbation probes that carry
+quantitative weight for four models (a third, \emph{swap}, covers too few items to
+support any claim and is reported in Appendix~\ref{app:swap}).
 
 \input{table2_sensitivity.tex}
 
@@ -311,9 +352,11 @@ items --- those crossing the correct/incorrect boundary, which is by constructio
 \nbRightToWrong{} $+$ \nbWrongToRight{} --- is \nbWordingFlips{} out of
 \nbWordingCovered{}: \nbRightToWrong{} went correct $\rightarrow$ wrong and
 \nbWrongToRight{} went wrong $\to$ correct (exact McNemar $p=\pWordingExact$). The
-pattern is the same for the other three models. We therefore state the weaker and
-better-supported claim: we detect no systematic shift in correctness, and the
-discordant pairs are roughly balanced. The paraphrase instability is real, but it is
+pattern is the same in kind for the other three models, though the direction of the
+few discordant items varies. We therefore state the weaker and better-supported
+claim: we detect no systematic \emph{penalty} from paraphrase --- if anything the
+discordant items lean favourable --- and the effect is not significant in either
+direction. The paraphrase instability is real, but it is
 \emph{value-level wandering} rather than a systematic loss of competence --- a
 distinction that a single accuracy number hides entirely.
 
@@ -325,6 +368,19 @@ most likely to sit near a grading boundary. We flag this as untested rather than
 assume it away.
 
 \input{table8_wording_2x2.tex}
+
+\paragraph{What the accuracy number hides here.}
+A single accuracy pass over the base and paraphrased prompts yields
+\pairBaseSevenB\% and \pairVarSevenB\% (Table~\ref{tab:wording-2x2}), a difference
+that a careless comparison could report as an effect of prompt wording. Re-scoring
+the same generations against the reference shows the difference rests on
+\nbWordingFlips{} discordant items out of \nbWordingCovered{}, is not significant,
+and reverses sign across models (\pairDeltaPPThreeB{} / \pairDeltaPPSevenB{} /
+\pairDeltaPPFourteenB{} / \pairDeltaPPLlamaEightB{} points). Two distinct
+comparisons are available --- \emph{answer agreement} with the base run, and
+\emph{correctness} against the reference --- and they disagree by an order of
+magnitude. Reporting only the first is not a conservative error: it manufactures
+an effect.
 
 \subsection{Where is the computation, and is the output on the same pathway?}
 \label{sec:causal}
@@ -339,12 +395,20 @@ strict inclusion rule (\nbCausalCleanWrong{} skipped as clean-wrong,
 of problems the model \emph{already solves}. Every statement in this subsection is
 therefore scoped to solvable problems, not to the benchmark as a whole.
 
-\paragraph{A band, not a peak.}
+\paragraph{A band, not a peak --- and that is the result.}
 Recovery rises across the early-middle layers and collapses after layer 18
 (Figure~\ref{fig:causal}). The point estimate is maximal at layer \peakLayer{}
 ($+\peakRecovery$), with a bootstrap 95\% CI on that mean of
 $[+\peakCiLo, +\peakCiHi]$. A paired bootstrap over problems, however, cannot
 separate it from \nbNonseparableLayers{} other layers.
+
+We regard this as an identifiability result rather than a failed localisation. At
+\nbCausalValid{} exploitable problems, single-layer attribution is not supportable
+in this setting: the data licence a \emph{range} claim and nothing finer. Studies
+that report a specific critical layer from comparable sample sizes are, on our
+estimate, reporting a point estimate whose uncertainty is larger than the
+differences between adjacent layers --- which is a statement about what the
+protocol can establish, not about the model alone.
 
 \paragraph{How the band is defined.}
 Rather than reading a range off the curve by eye, we define it formally: the plateau
@@ -405,6 +469,15 @@ which includes zero at several layers. The two pathways are therefore distinct, 
 the failures are capability limits rather than misplaced representations that a
 patch could repair.
 
+\paragraph{What the accuracy number hides here.}
+The accuracy metric collapses ``emitted a number'' and ``emitted the right number''
+into one bit, and in this setting the first is nearly always true while the second
+is mostly false. Measured separately, they behave differently under intervention:
+format compliance is already at ceiling before any restoration and stays there,
+whereas correctness moves with depth. A single number cannot express that
+dissociation --- and an evaluation that silently discards unparseable outputs would
+understate how rarely the parseability channel actually fails.
+
 \subsection{Knowledge or execution? A format control}
 \label{sec:cross}
 Table~\ref{tab:cross-task} holds the model and the subject matter fixed and varies
@@ -425,7 +498,7 @@ absolute-level claim from this benchmark and never compare its values numericall
 against SciBench; per-sub-domain counts are so small (six gradable optics items,
 all incorrect) that we do not interpret them.
 
-\subsection{Which stage fails, and can we tell reliably?}
+\subsection{Validity bound I: which stage fails, and can anyone tell?}
 \label{sec:errors}
 We annotated every SciBench chain-of-thought error with a three-way scheme --- E1
 wrong physical law, E2 algebraic/arithmetic/unit error, E3 violated constraint ---
@@ -433,22 +506,35 @@ and repeated the annotation with a second, cross-family judge on the same sample
 
 \input{table4_errors.tex}
 
-Under \emph{both} judges E2 is the modal category and E3 stays small, and the
-7B/14B distributions do not differ significantly under either labelling
-(same-family $\chi^2=\chiSameFamily$, $p=\pChiSameFamily$; cross-family
-$\chi^2=\chiCrossFamily$, $p=\pChiCrossFamily$). The larger model therefore gets
-more problems right rather than failing differently, which matches the format
-control: the bottleneck is execution, not physical knowledge.
+\paragraph{The finding is about observability, not about our judges.}
+The reason two competent judges disagree here is mechanical: applying the wrong law
+usually produces wrong arithmetic as well, so the \emph{observable text} is
+compatible with either label. E1 and E2 are not separated by anything a judge can
+see in the generation. The per-class pattern confirms it --- the judges agree
+\pctAgreeEtwo\% of the time on E2 but only \pctAgreeEone\% on E1, i.e.\ agreement is
+high exactly where the category is defined by surface evidence (an arithmetic slip
+inside a correct derivation) and collapses where it would require inferring an
+unobservable intention. This is a limitation of the taxonomy as a measurement
+instrument, not an indictment of either model: no annotator, human or LLM, can
+recover a distinction the text does not carry.
 
-Agreement between the judges is, however, only $\kappa=\kappaAnnotators$
-(\pctAgreeAnnotators\% raw agreement, $\kappa_w=\kappaLinearWeighted$ linearly
-weighted). The per-class picture explains why: on E2 the judges agree
-\pctAgreeEtwo\% of the time, on E1 only \pctAgreeEone\%. Applying the wrong law
-usually also produces wrong arithmetic, so the observable text is consistent with
-either label. We consequently report only the annotator-robust statement (modal
-category E2, small E3, no 7B/14B difference) and treat the disagreement as a
-finding about error taxonomies rather than as an inconvenience
-(\S\ref{sec:discussion}).
+What survives the disagreement is therefore what both judges can see: E2 is the
+modal category and E3 is rare under \emph{both} labellings, and the 7B/14B
+distributions do not differ under either (same-family
+$\chi^2=\chiSameFamily$, $p=\pChiSameFamily$; cross-family
+$\chi^2=\chiCrossFamily$, $p=\pChiCrossFamily$). Overall agreement is
+$\kappa=\kappaAnnotators$ (\pctAgreeAnnotators\% raw,
+$\kappa_w=\kappaLinearWeighted$ linearly weighted). The larger model gets more
+problems right rather than failing differently, which matches the format control:
+the bottleneck is execution, not physical knowledge.
+
+\paragraph{What the accuracy number hides here.}
+``Error type'' is often reported as a single distribution from a single judge. With
+two judges the distribution shifts by more than 20 points on the E1/E2 split, which
+means the reported shares are partly a property of the annotator. The 7B/14B
+\emph{comparison}, by contrast, is stable across judges --- so the same table
+supports one claim robustly and another not at all, and only the agreement
+measurement reveals which is which.
 
 \subsection{Can prompt scaffolding repair the instability?}
 \label{sec:scaffold}
@@ -456,22 +542,29 @@ If the paraphrase instability were caused by a missing solution scaffold, tellin
 the model to write down the knowns and unknowns explicitly should help. At a
 matched token budget on the same \nbScafCot{} problems it changes accuracy from
 \accScafCot\% to \accScafStruct\% (\scafDeltaPP{} points, McNemar $p=\scafP$)
---- no reliable gain (Table~\ref{tab:scaffold}).
+--- no reliable gain (Table~\ref{tab:scaffold}). The failure is a capability
+property, not a missing scaffold.
 
 \input{table7_prompt_scaffold.tex}
 
-\subsection{An output-format ceiling (a measurement bound, not a finding)}
+\subsection{Validity bound II: an output-format ceiling}
 \label{sec:format}
-One measurement limitation deserves separate mention because it caps what any
-strict-format evaluation can see --- it is a bound on our instrument, not a claim
-about model behaviour. Between \pctNoAnswerCot\% and \pctNoAnswerStruct\% of outputs
-never emit the requested \texttt{ANSWER:} line and are graded by the fallback
-extractor (``last number on the last line''). Output lengths stay far below the
-token budget, so this is a format-compliance failure rather than truncation. The
-lower block of Table~\ref{tab:scaffold} pools both prompts and compares outputs
+The second bound is on the evaluation apparatus, and it is large enough to change
+conclusions. Between \pctNoAnswerCot\% and \pctNoAnswerStruct\% of outputs never emit
+the requested \texttt{ANSWER:} line. Output lengths stay far below the token budget,
+so this is a format-compliance failure, not truncation --- the models simply do not
+follow the formatting instruction.
+
+Two grading policies are then available for the same generations: strict (count
+format violations as failures) and fallback (recover a number from the last line).
+The lower block of Table~\ref{tab:scaffold} pools both prompts and compares outputs
 with and without the marker: accuracy is similar in the two groups, so the fallback
-does not visibly bias the headline numbers --- but an evaluation that insisted on
-the format would report a lower ceiling than ours.
+does not visibly inflate the headline numbers. That is a relief for our own results
+but not for the field: on identical generations the two policies give different
+ceilings, and which one a paper used is usually not reported. A strict-format
+evaluation of the same models would therefore publish a lower number without
+disclosing that the difference is compliance, not capability --- the same
+failure mode as the annotation bound above, in a second place.
 
 % ---------------------------------------------------------------- 5 Discussion
 \input{discussion.tex}

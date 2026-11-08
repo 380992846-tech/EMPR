@@ -1,0 +1,30 @@
+% 由 scripts/make_paper_tables.py 生成，请勿手改
+\section{The \emph{swap} probe}
+\label{app:swap}
+The \emph{swap} perturbation exchanges two distinct physical quantities, producing a
+physically inconsistent problem. Most benchmark problems contain quantities of a
+single type or carry no units, so only a minority of items admit such a swap. Because
+the resulting sample is small and its percentages therefore unstable, we report the
+numbers for completeness and draw \emph{no} quantitative conclusion from them; they
+are excluded from Table~\ref{tab:sensitivity} precisely so that they are not read as
+comparable to the other two probes.
+
+\begin{table}[h]
+  \centering
+  \caption{The \emph{swap} probe, reported for completeness only. Coverage is a
+           property of the data (few items admit a two-quantity exchange), not of the
+           model, and is identical across models.}
+  \label{tab:swap}
+  \small
+  \begin{tabular}{@{}l r r r r@{}}
+    \toprule
+    \textbf{Model} & \textbf{Coverage} & \textbf{$n$ parsed} & \textbf{Median sens.} &
+      \textbf{Changed} \\
+    \midrule
+    Qwen2.5-3B & 36/323 (11.1\%) & 36 & 0.840 & 83.3\% \\
+    Qwen2.5-7B & 36/323 (11.1\%) & 36 & 0.371 & 69.4\% \\
+    Qwen2.5-14B & 36/323 (11.1\%) & 36 & 0.533 & 80.6\% \\
+    Llama-3.1-8B & 36/323 (11.1\%) & 36 & 0.335 & 63.9\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
